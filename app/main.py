@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 
 import uvicorn
+import urllib.parse
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
@@ -31,7 +32,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-kb_manager = KnowledgeBaseManager("knowledge_base")
+kb_manager = KnowledgeBaseManager(str(BASE_DIR / "knowledge_base"))
 expert_system = ExpertSystem()
 
 @app.get("/", response_class=HTMLResponse)
@@ -40,7 +41,12 @@ async def read_root(request: Request):
 
 @app.get("/api/knowledge-bases")
 async def get_knowledge_bases():
-    return {"files": kb_manager.list_knowledge_bases()}
+    try:
+        files = kb_manager.list_knowledge_bases()
+        print(len(files))
+        return {"success": True, "files": files}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/knowledge-base/{filename}")
 async def load_knowledge_base(filename: str):
@@ -50,7 +56,8 @@ async def load_knowledge_base(filename: str):
         return {
             "success": True,
             "facts": expert_system.facts,
-            "rules": expert_system.rules
+            "rules": expert_system.rules,
+            "filename": filename
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -79,10 +86,11 @@ async def add_fact(fact_data: dict):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@app.delete("/api/fact/{fact}")
+@app.delete("/api/fact/{fact:path}")
 async def delete_fact(fact: str):
     try:
-        expert_system.delete_fact(fact)
+        decoded_fact = urllib.parse.unquote(fact)
+        expert_system.delete_fact(decoded_fact)
         return {"success": True, "facts": expert_system.facts}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -126,6 +134,9 @@ async def get_current_state():
         "rules": expert_system.rules
     }
 
+@app.get("/api/health")
+async def health_check():
+    return {"status": "ok", "service": "expert-system"}
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
@@ -136,8 +147,7 @@ if __name__ == "__main__":
     print(f"Сервер запускается на http://localhost:{port}")
     print(f"Для остановки сервера нажмите Ctrl+C")
     print("=" * 50)
-    print(f"BASE DIR: {BASE_DIR}")
-    print("=" * 50)
+    print(BASE_DIR)
 
     uvicorn.run(
         "app.main:app",

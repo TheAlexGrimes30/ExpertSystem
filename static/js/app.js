@@ -2,17 +2,17 @@ let currentFacts = {};
 let currentRules = [];
 let selectedFact = null;
 let selectedRule = null;
+let currentFilename = null;
 
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('Expert System loaded');
     loadKnowledgeBases();
     loadCurrentState();
     updateCounters();
     showTab('facts');
 });
 
-// ============= ВКЛАДКИ =============
 function showTab(tabName) {
-    // Исправленная версия - event передается как параметр
     document.querySelectorAll('.tab-content').forEach(tab => {
         tab.classList.remove('active');
     });
@@ -21,9 +21,11 @@ function showTab(tabName) {
         btn.classList.remove('active');
     });
 
-    document.getElementById(tabName + 'Tab').classList.add('active');
+    const tabElement = document.getElementById(tabName + 'Tab');
+    if (tabElement) {
+        tabElement.classList.add('active');
+    }
 
-    // Находим кнопку по тексту
     document.querySelectorAll('.tab-btn').forEach(btn => {
         if (btn.textContent.includes(tabName === 'facts' ? 'Факты' : 'Правила')) {
             btn.classList.add('active');
@@ -31,13 +33,9 @@ function showTab(tabName) {
     });
 }
 
-// ============= ФАКТЫ =============
 function addOrEditFact() {
-    const factInput = document.getElementById('factInput');
-    const cfInput = document.getElementById('factCF');
-
-    const fact = factInput.value.trim();
-    const cf = parseFloat(cfInput.value);
+    const fact = document.getElementById('factInput').value.trim();
+    const cf = parseFloat(document.getElementById('factCF').value);
 
     if (!fact) {
         alert('Пожалуйста, введите факт');
@@ -56,9 +54,7 @@ function addOrEditFact() {
 
     fetch('/api/fact', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
+        headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(factData)
     })
     .then(response => response.json())
@@ -108,7 +104,6 @@ function clearFactInputs() {
     document.getElementById('factInput').value = '';
     document.getElementById('factCF').value = '';
     selectedFact = null;
-
     document.querySelectorAll('.fact-item').forEach(item => {
         item.classList.remove('selected');
     });
@@ -116,26 +111,18 @@ function clearFactInputs() {
 
 function selectFact(fact, element) {
     selectedFact = fact;
-
     document.querySelectorAll('.fact-item').forEach(item => {
         item.classList.remove('selected');
     });
-
     element.classList.add('selected');
-
     document.getElementById('factInput').value = fact;
     document.getElementById('factCF').value = currentFacts[fact];
 }
 
-// ============= ПРАВИЛА =============
 function addOrEditRule() {
-    const conditionsInput = document.getElementById('conditionsInput');
-    const conclusionInput = document.getElementById('conclusionInput');
-    const ruleCFInput = document.getElementById('ruleCF');
-
-    const conditions = conditionsInput.value.split(',').map(c => c.trim()).filter(c => c);
-    const conclusion = conclusionInput.value.trim();
-    const cf = parseFloat(ruleCFInput.value);
+    const conditions = document.getElementById('conditionsInput').value.split(',').map(c => c.trim()).filter(c => c);
+    const conclusion = document.getElementById('conclusionInput').value.trim();
+    const cf = parseFloat(document.getElementById('ruleCF').value);
 
     if (conditions.length === 0) {
         alert('Пожалуйста, введите хотя бы одно условие');
@@ -160,9 +147,7 @@ function addOrEditRule() {
 
     fetch('/api/rule', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
+        headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(ruleData)
     })
     .then(response => response.json())
@@ -213,7 +198,6 @@ function clearRuleInputs() {
     document.getElementById('conclusionInput').value = '';
     document.getElementById('ruleCF').value = '';
     selectedRule = null;
-
     document.querySelectorAll('.rule-item').forEach(item => {
         item.classList.remove('selected');
     });
@@ -221,20 +205,16 @@ function clearRuleInputs() {
 
 function selectRule(index, element) {
     selectedRule = index;
-
     document.querySelectorAll('.rule-item').forEach(item => {
         item.classList.remove('selected');
     });
-
     element.classList.add('selected');
-
     const rule = currentRules[index];
     document.getElementById('conditionsInput').value = rule.if.join(', ');
     document.getElementById('conclusionInput').value = rule.then;
     document.getElementById('ruleCF').value = rule.cf;
 }
 
-// ============= ВЫВОД =============
 function makeInference() {
     fetch('/api/infer', {
         method: 'POST'
@@ -243,8 +223,6 @@ function makeInference() {
     .then(data => {
         if (data.success) {
             displayInferenceResults(data.inferred);
-            currentFacts = data.all_facts;
-            displayAllFacts();
             updateCounters();
         }
     })
@@ -254,23 +232,32 @@ function makeInference() {
     });
 }
 
-// ============= БАЗА ЗНАНИЙ =============
 function loadKnowledgeBases() {
     fetch('/api/knowledge-bases')
         .then(response => response.json())
         .then(data => {
-            const select = document.getElementById('knowledgeBaseList');
-            select.innerHTML = '';
+            if (data.success) {
+                const select = document.getElementById('knowledgeBaseList');
+                select.innerHTML = '';
 
-            data.files.forEach(file => {
-                const option = document.createElement('option');
-                option.value = file;
-                option.textContent = file;
-                select.appendChild(option);
-            });
+                if (data.files.length === 0) {
+                    const option = document.createElement('option');
+                    option.textContent = 'Нет доступных баз знаний';
+                    option.disabled = true;
+                    select.appendChild(option);
+                } else {
+                    data.files.forEach(file => {
+                        const option = document.createElement('option');
+                        option.value = file;
+                        option.textContent = file;
+                        select.appendChild(option);
+                    });
+                }
+            }
         })
         .catch(error => {
             console.error('Error:', error);
+            alert('Ошибка при загрузке списка баз знаний');
         });
 }
 
@@ -278,7 +265,7 @@ function loadSelectedBase() {
     const select = document.getElementById('knowledgeBaseList');
     const selectedFile = select.value;
 
-    if (!selectedFile) {
+    if (!selectedFile || selectedFile.includes('Нет доступных')) {
         alert('Пожалуйста, выберите файл для загрузки');
         return;
     }
@@ -289,10 +276,10 @@ function loadSelectedBase() {
             if (data.success) {
                 currentFacts = data.facts;
                 currentRules = data.rules;
+                currentFilename = data.filename || selectedFile;
 
                 displayFacts();
                 displayRules();
-                displayAllFacts();
                 updateCounters();
 
                 alert(`База знаний "${selectedFile}" успешно загружена`);
@@ -304,53 +291,11 @@ function loadSelectedBase() {
         });
 }
 
-function saveBaseDialog() {
-    document.getElementById('saveModal').style.display = 'flex';
-}
-
-function closeModal() {
-    document.getElementById('saveModal').style.display = 'none';
-}
-
-function saveBase() {
-    const filename = document.getElementById('modalSaveName').value.trim();
-
-    if (!filename) {
-        alert('Пожалуйста, введите имя файла');
-        return;
-    }
-
-    const data = {
-        facts: currentFacts,
-        rules: currentRules
-    };
-
-    fetch(`/api/knowledge-base/${filename}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            closeModal();
-            loadKnowledgeBases();
-            alert('База знаний успешно сохранена');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Ошибка при сохранении базы знаний');
-    });
-}
-
 function saveCurrentBase() {
-    const filename = document.getElementById('saveFilename').value.trim();
+    const filename = prompt('Введите имя для нового файла базы знаний:',
+                           currentFilename || 'my_knowledge_base');
 
     if (!filename) {
-        alert('Пожалуйста, введите имя файла');
         return;
     }
 
@@ -361,16 +306,13 @@ function saveCurrentBase() {
 
     fetch(`/api/knowledge-base/${filename}`, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
+        headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(data)
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
             loadKnowledgeBases();
-            document.getElementById('saveFilename').value = '';
             alert('База знаний успешно сохранена');
         }
     })
@@ -384,7 +326,7 @@ function deleteSelectedBase() {
     const select = document.getElementById('knowledgeBaseList');
     const selectedFile = select.value;
 
-    if (!selectedFile) {
+    if (!selectedFile || selectedFile.includes('Нет доступных')) {
         alert('Пожалуйста, выберите файл для удаления');
         return;
     }
@@ -409,18 +351,24 @@ function deleteSelectedBase() {
     });
 }
 
-// ============= ОТОБРАЖЕНИЕ ДАННЫХ =============
 function displayFacts() {
     const factsList = document.getElementById('factsList');
     factsList.innerHTML = '';
+
+    if (Object.keys(currentFacts).length === 0) {
+        factsList.innerHTML = '<div class="empty-message">Факты отсутствуют</div>';
+        return;
+    }
 
     Object.entries(currentFacts).forEach(([fact, cf]) => {
         const factItem = document.createElement('div');
         factItem.className = 'fact-item';
         factItem.onclick = () => selectFact(fact, factItem);
         factItem.innerHTML = `
-            ${fact}
-            <span class="fact-cf">${cf.toFixed(2)}</span>
+            <div class="fact-content">
+                <div class="fact-text">${fact}</div>
+                <div class="fact-cf">CF: ${cf.toFixed(2)}</div>
+            </div>
         `;
         factsList.appendChild(factItem);
     });
@@ -430,14 +378,21 @@ function displayRules() {
     const rulesList = document.getElementById('rulesList');
     rulesList.innerHTML = '';
 
+    if (currentRules.length === 0) {
+        rulesList.innerHTML = '<div class="empty-message">Правила отсутствуют</div>';
+        return;
+    }
+
     currentRules.forEach((rule, index) => {
         const ruleItem = document.createElement('div');
         ruleItem.className = 'rule-item';
         ruleItem.onclick = () => selectRule(index, ruleItem);
         ruleItem.innerHTML = `
-            <strong>ЕСЛИ:</strong> ${rule.if.join(', ')}<br>
-            <strong>ТО:</strong> ${rule.then}
-            <span class="rule-cf">${rule.cf.toFixed(2)}</span>
+            <div class="rule-content">
+                <div class="rule-if"><strong>ЕСЛИ:</strong> ${rule.if.join(' И ')}</div>
+                <div class="rule-then"><strong>ТО:</strong> ${rule.then}</div>
+                <div class="rule-cf">CF: ${rule.cf.toFixed(2)}</div>
+            </div>
         `;
         rulesList.appendChild(ruleItem);
     });
@@ -447,8 +402,8 @@ function displayInferenceResults(inferred) {
     const resultsList = document.getElementById('inferenceResults');
     resultsList.innerHTML = '';
 
-    if (Object.keys(inferred).length === 0) {
-        resultsList.innerHTML = '<div class="inference-result">Новые выводы отсутствуют</div>';
+    if (!inferred || Object.keys(inferred).length === 0) {
+        resultsList.innerHTML = '<div class="inference-empty">Новые выводы отсутствуют</div>';
         return;
     }
 
@@ -456,28 +411,11 @@ function displayInferenceResults(inferred) {
         const resultItem = document.createElement('div');
         resultItem.className = 'inference-result';
         resultItem.innerHTML = `
-            <strong>${fact}</strong><br>
-            Коэффициент уверенности: <strong>${cf.toFixed(4)}</strong>
+            <div class="inference-fact">${fact}</div>
+            <div class="inference-cf">Уверенность: <strong>${cf.toFixed(4)}</strong></div>
         `;
         resultsList.appendChild(resultItem);
     });
-}
-
-function displayAllFacts() {
-    const allFactsList = document.getElementById('allFactsList');
-    allFactsList.innerHTML = '';
-
-    Object.entries(currentFacts)
-        .sort((a, b) => b[1] - a[1])
-        .forEach(([fact, cf]) => {
-            const factItem = document.createElement('div');
-            factItem.className = 'fact-item';
-            factItem.innerHTML = `
-                ${fact}
-                <span class="fact-cf">${cf.toFixed(4)}</span>
-            `;
-            allFactsList.appendChild(factItem);
-        });
 }
 
 function updateCounters() {
@@ -489,37 +427,32 @@ function loadCurrentState() {
     fetch('/api/current-state')
         .then(response => response.json())
         .then(data => {
-            currentFacts = data.facts;
-            currentRules = data.rules;
-
-            displayFacts();
-            displayRules();
-            displayAllFacts();
-            updateCounters();
+            if (data.success) {
+                currentFacts = data.facts;
+                currentRules = data.rules;
+                displayFacts();
+                displayRules();
+                updateCounters();
+            }
         })
         .catch(error => {
             console.error('Error:', error);
         });
 }
 
-// Закрытие модального окна при клике вне его
-window.onclick = function(event) {
-    const modal = document.getElementById('saveModal');
-    if (event.target == modal) {
-        closeModal();
-    }
-}
-
-// Обработка нажатия Enter
 document.addEventListener('keypress', function(event) {
     if (event.key === 'Enter') {
-        const activeTab = document.querySelector('.tab-content.active').id;
-
-        if (activeTab === 'factsTab' && (event.target.id === 'factInput' || event.target.id === 'factCF')) {
-            addOrEditFact();
-        } else if (activeTab === 'rulesTab' && (event.target.id === 'conditionsInput' ||
-                 event.target.id === 'conclusionInput' || event.target.id === 'ruleCF')) {
-            addOrEditRule();
+        const activeTab = document.querySelector('.tab-content.active');
+        if (activeTab && activeTab.id === 'factsTab') {
+            if (event.target.id === 'factInput' || event.target.id === 'factCF') {
+                addOrEditFact();
+            }
+        } else if (activeTab && activeTab.id === 'rulesTab') {
+            if (event.target.id === 'conditionsInput' ||
+                event.target.id === 'conclusionInput' ||
+                event.target.id === 'ruleCF') {
+                addOrEditRule();
+            }
         }
     }
 });

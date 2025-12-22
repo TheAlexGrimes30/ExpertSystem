@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 from typing import List, Dict, Any
 
@@ -9,25 +10,54 @@ class KnowledgeBaseManager:
         self.base_dir.mkdir(exist_ok=True)
 
     def list_knowledge_bases(self) -> List[str]:
-        return [f.name for f in self.base_dir.glob("*.json")]
+        """Получить список всех JSON файлов"""
+        json_files = []
+        for file in self.base_dir.glob("*.json"):
+            print(file.name)
+            json_files.append(file.name)
+        return sorted(json_files)
 
     def load_knowledge_base(self, filename: str) -> Dict[str, Any]:
+        """Загрузить базу знаний из файла"""
         filepath = self.base_dir / filename
         if not filepath.exists():
-            raise FileNotFoundError(f"File {filename} not found")
+            raise FileNotFoundError(f"Файл {filename} не найден")
 
         with open(filepath, 'r', encoding='utf-8') as f:
-            return json.load(f)
+            data = json.load(f)
 
-    def save_knowledge_base(self, filename: str, data: Dict[str, Any]) -> None:
+        # Валидация структуры
+        if not isinstance(data, dict):
+            raise ValueError("Неверный формат файла")
+
+        if "facts" not in data:
+            data["facts"] = {}
+        if "rules" not in data:
+            data["rules"] = []
+
+        return data
+
+    def save_knowledge_base(self, filename: str, data: Dict[str, Any]):
+        """Сохранить базу знаний в файл"""
         if not filename.endswith('.json'):
             filename += '.json'
 
         filepath = self.base_dir / filename
+
+        # Проверяем, существует ли файл
+        counter = 1
+        original_filename = filename
+        while filepath.exists():
+            name, ext = os.path.splitext(original_filename)
+            filename = f"{name}_{counter}{ext}"
+            filepath = self.base_dir / filename
+            counter += 1
+
         with open(filepath, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
 
-    def delete_knowledge_base(self, filename: str) -> None:
+    def delete_knowledge_base(self, filename: str):
+        """Удалить файл базы знаний"""
         filepath = self.base_dir / filename
         if filepath.exists():
             filepath.unlink()

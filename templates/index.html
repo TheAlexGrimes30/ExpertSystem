@@ -11,7 +11,7 @@
     <div class="container">
         <header>
             <h1><i class="fas fa-brain"></i> Экспертная система по методу Шортлиффа</h1>
-            <p>Редактируемая экспертная система с коэффициентами уверенности</p>
+            <p>Редактируемая экспертная система с коэффициентами уверенности (CF)</p>
         </header>
 
         <div class="main-content">
@@ -22,33 +22,31 @@
                     <h3>Файлы базы знаний</h3>
                     <div class="file-controls">
                         <select id="knowledgeBaseList" size="5">
+                            <option>Загрузка...</option>
                         </select>
                         <div class="file-buttons">
                             <button onclick="loadSelectedBase()" class="btn btn-primary">
-                                <i class="fas fa-folder-open"></i> Загрузить
+                                <i class="fas fa-folder-open"></i> Загрузить выбранную
                             </button>
-                            <button onclick="saveBaseDialog()" class="btn btn-success">
-                                <i class="fas fa-save"></i> Сохранить как
+                            <button onclick="saveCurrentBase()" class="btn btn-success">
+                                <i class="fas fa-save"></i> Сохранить текущую
                             </button>
                             <button onclick="deleteSelectedBase()" class="btn btn-danger">
-                                <i class="fas fa-trash"></i> Удалить
+                                <i class="fas fa-trash"></i> Удалить выбранную
                             </button>
                         </div>
-                    </div>
-
-                    <div class="save-section">
-                        <input type="text" id="saveFilename" placeholder="Имя файла (без .json)">
-                        <button onclick="saveCurrentBase()" class="btn btn-save">
-                            <i class="fas fa-save"></i> Сохранить текущую базу
-                        </button>
                     </div>
                 </div>
 
                 <div class="current-state">
                     <h3>Текущее состояние</h3>
                     <div class="stats">
-                        <span class="stat"><i class="fas fa-list-check"></i> Фактов: <span id="factCount">0</span></span>
-                        <span class="stat"><i class="fas fa-rules"></i> Правил: <span id="ruleCount">0</span></span>
+                        <span class="stat">
+                            <i class="fas fa-list-check"></i> Фактов: <span id="factCount">0</span>
+                        </span>
+                        <span class="stat">
+                            <i class="fas fa-rules"></i> Правил: <span id="ruleCount">0</span>
+                        </span>
                     </div>
                 </div>
             </div>
@@ -66,8 +64,8 @@
                 <div id="factsTab" class="tab-content active">
                     <h3>Управление фактами</h3>
                     <div class="input-group">
-                        <input type="text" id="factInput" placeholder="Введите факт">
-                        <input type="number" id="factCF" placeholder="CF (0-1)" min="0" max="1" step="0.1">
+                        <input type="text" id="factInput" placeholder="Введите факт (например: 'Машина не заводится')">
+                        <input type="number" id="factCF" placeholder="CF (0-1)" min="0" max="1" step="0.1" value="0.8">
                         <button onclick="addOrEditFact()" class="btn btn-primary">
                             <i class="fas fa-plus"></i> Добавить/Изменить
                         </button>
@@ -77,9 +75,9 @@
                     </div>
 
                     <div class="list-container">
-                        <h4>Список фактов</h4>
+                        <h4>Список фактов (кликните для редактирования)</h4>
                         <div id="factsList" class="scrollable-list">
-
+                            <div class="empty-message">Факты отсутствуют</div>
                         </div>
                         <button onclick="deleteSelectedFact()" class="btn btn-danger">
                             <i class="fas fa-trash"></i> Удалить выбранный факт
@@ -90,9 +88,9 @@
                 <div id="rulesTab" class="tab-content">
                     <h3>Управление правилами</h3>
                     <div class="input-group">
-                        <input type="text" id="conditionsInput" placeholder="Условия (через запятую)">
-                        <input type="text" id="conclusionInput" placeholder="Заключение">
-                        <input type="number" id="ruleCF" placeholder="CF правила (0-1)" min="0" max="1" step="0.1">
+                        <input type="text" id="conditionsInput" placeholder="Условия через запятую (например: 'Машина не заводится, Слышен щелчок')">
+                        <input type="text" id="conclusionInput" placeholder="Заключение (например: 'Проблема с аккумулятором')">
+                        <input type="number" id="ruleCF" placeholder="CF правила (0-1)" min="0" max="1" step="0.1" value="0.9">
                         <button onclick="addOrEditRule()" class="btn btn-primary">
                             <i class="fas fa-plus"></i> Добавить/Изменить
                         </button>
@@ -102,9 +100,9 @@
                     </div>
 
                     <div class="list-container">
-                        <h4>Список правил</h4>
+                        <h4>Список правил (кликните для редактирования)</h4>
                         <div id="rulesList" class="scrollable-list">
-
+                            <div class="empty-message">Правила отсутствуют</div>
                         </div>
                         <button onclick="deleteSelectedRule()" class="btn btn-danger">
                             <i class="fas fa-trash"></i> Удалить выбранное правило
@@ -123,14 +121,7 @@
                 <div class="results">
                     <h3>Результаты вывода</h3>
                     <div id="inferenceResults" class="scrollable-list">
-
-                    </div>
-                </div>
-
-                <div class="all-facts">
-                    <h3>Все известные факты</h3>
-                    <div id="allFactsList" class="scrollable-list">
-
+                        <div class="inference-empty">Нажмите "Выполнить вывод"</div>
                     </div>
                 </div>
             </div>
@@ -138,19 +129,8 @@
 
         <footer>
             <p>Экспертная система по методу Шортлиффа &copy; 2024</p>
-            <p class="hint">CF - коэффициент уверенности (Certainty Factor) от 0 до 1</p>
+            <p class="hint">CF (Certainty Factor) - коэффициент уверенности от 0 (нет уверенности) до 1 (полная уверенность)</p>
         </footer>
-    </div>
-
-    <div id="saveModal" class="modal">
-        <div class="modal-content">
-            <h3>Сохранить базу знаний</h3>
-            <input type="text" id="modalSaveName" placeholder="Введите имя файла (без .json)">
-            <div class="modal-buttons">
-                <button onclick="saveBase()" class="btn btn-success">Сохранить</button>
-                <button onclick="closeModal()" class="btn btn-secondary">Отмена</button>
-            </div>
-        </div>
     </div>
 
     <script src="/static/js/app.js"></script>
