@@ -11,7 +11,7 @@
     <div class="container">
         <header>
             <h1><i class="fas fa-brain"></i> Экспертная система по методу Шортлиффа</h1>
-            <p>Редактируемая экспертная система с коэффициентами уверенности (CF)</p>
+            <p>Редактируемая экспертная система с коэффициентами уверенности (CF) и логическими операторами</p>
         </header>
 
         <div class="main-content">
@@ -64,7 +64,7 @@
                 <div id="factsTab" class="tab-content active">
                     <h3>Управление фактами</h3>
                     <div class="input-group">
-                        <input type="text" id="factInput" placeholder="Введите факт (например: 'Машина не заводится')">
+                        <input type="text" id="factInput" placeholder="Введите факт">
                         <input type="number" id="factCF" placeholder="CF (0-1)" min="0" max="1" step="0.1" value="0.8">
                         <button onclick="addOrEditFact()" class="btn btn-primary">
                             <i class="fas fa-plus"></i> Добавить/Изменить
@@ -88,15 +88,26 @@
                 <div id="rulesTab" class="tab-content">
                     <h3>Управление правилами</h3>
                     <div class="input-group">
-                        <input type="text" id="conditionsInput" placeholder="Условия через запятую (например: 'Машина не заводится, Слышен щелчок')">
-                        <input type="text" id="conclusionInput" placeholder="Заключение (например: 'Проблема с аккумулятором')">
-                        <input type="number" id="ruleCF" placeholder="CF правила (0-1)" min="0" max="1" step="0.1" value="0.9">
+                        <input type="text" id="conditionsInput" placeholder="Условия через запятую">
+                        <input type="text" id="conclusionInput" placeholder="Заключение">
+                        <input type="number" id="ruleCF" placeholder="CF правила" min="0" max="1" step="0.1" value="0.9">
                         <button onclick="addOrEditRule()" class="btn btn-primary">
                             <i class="fas fa-plus"></i> Добавить/Изменить
                         </button>
                         <button onclick="clearRuleInputs()" class="btn btn-secondary">
                             <i class="fas fa-times"></i> Очистить
                         </button>
+                    </div>
+
+                    <div class="hint-box">
+                        <p><strong>Синтаксис условий с операторами:</strong></p>
+                        <ul>
+                            <li><code>Факт1 И, Факт2</code> - оба факта должны быть истинны (AND)</li>
+                            <li><code>Факт1 ИЛИ, Факт2</code> - хотя бы один факт истинен (OR)</li>
+                            <li><code>Факт1 НЕТ</code> - факт должен быть ложным (NOT)</li>
+                            <li>Можно комбинировать: <code>Факт1 И, Факт2 ИЛИ, Факт3</code></li>
+                            <li>Без оператора: <code>Факт1, Факт2</code> - по умолчанию AND</li>
+                        </ul>
                     </div>
 
                     <div class="list-container">

@@ -120,9 +120,16 @@ function selectFact(fact, element) {
 }
 
 function addOrEditRule() {
-    const conditions = document.getElementById('conditionsInput').value.split(',').map(c => c.trim()).filter(c => c);
-    const conclusion = document.getElementById('conclusionInput').value.trim();
-    const cf = parseFloat(document.getElementById('ruleCF').value);
+    const conditionsInput = document.getElementById('conditionsInput');
+    const conclusionInput = document.getElementById('conclusionInput');
+    const ruleCFInput = document.getElementById('ruleCF');
+
+    // Парсим условия с операторами
+    const rawConditions = conditionsInput.value.split(',').map(c => c.trim()).filter(c => c);
+    const conditions = parseConditions(rawConditions);
+
+    const conclusion = conclusionInput.value.trim();
+    const cf = parseFloat(ruleCFInput.value);
 
     if (conditions.length === 0) {
         alert('Пожалуйста, введите хотя бы одно условие');
@@ -163,6 +170,41 @@ function addOrEditRule() {
         console.error('Error:', error);
         alert('Ошибка при сохранении правила');
     });
+}
+
+function parseConditions(rawConditions) {
+    const conditions = [];
+    const operatorMap = {
+        'И': 'AND',
+        'ИЛИ': 'OR',
+        'НЕТ': 'NOT'
+    };
+
+    for (let i = 0; i < rawConditions.length; i++) {
+        const rawCondition = rawConditions[i];
+        let fact = rawCondition;
+        let operator = '';
+
+        // Ищем оператор в конце
+        const words = rawCondition.split(' ');
+        const lastWord = words[words.length - 1].toUpperCase();
+
+        // Проверяем русские и английские операторы
+        if (operatorMap[lastWord] || ['AND', 'OR', 'NOT'].includes(lastWord)) {
+            operator = operatorMap[lastWord] || lastWord;
+            fact = words.slice(0, -1).join(' ').trim();
+        } else if (i < rawConditions.length - 1) {
+            // По умолчанию для всех кроме последнего - AND
+            operator = 'AND';
+        }
+
+        conditions.push({
+            fact: fact,
+            operator: operator
+        });
+    }
+
+    return conditions;
 }
 
 function deleteSelectedRule() {
@@ -209,8 +251,18 @@ function selectRule(index, element) {
         item.classList.remove('selected');
     });
     element.classList.add('selected');
+
     const rule = currentRules[index];
-    document.getElementById('conditionsInput').value = rule.if.join(', ');
+    // Восстанавливаем условия в читаемом формате
+    const conditionsText = rule.if.map((cond, i) => {
+        let text = cond.fact;
+        if (cond.operator && i < rule.if.length - 1) {
+            text += ' ' + getOperatorDisplay(cond.operator);
+        }
+        return text;
+    }).join(', ');
+
+    document.getElementById('conditionsInput').value = conditionsText;
     document.getElementById('conclusionInput').value = rule.then;
     document.getElementById('ruleCF').value = rule.cf;
 }
@@ -387,15 +439,43 @@ function displayRules() {
         const ruleItem = document.createElement('div');
         ruleItem.className = 'rule-item';
         ruleItem.onclick = () => selectRule(index, ruleItem);
+
+        // Считаем сколько операторов каждого типа
+        const operatorCounts = { AND: 0, OR: 0, NOT: 0 };
+        rule.if.forEach(cond => {
+            if (cond.operator) operatorCounts[cond.operator]++;
+        });
+
+        // Определяем основной оператор для отображения
+        let mainOperator = '';
+        if (operatorCounts.OR > 0) mainOperator = 'OR';
+        else if (operatorCounts.NOT > 0) mainOperator = 'NOT';
+        else if (operatorCounts.AND > 0 || rule.if.length > 1) mainOperator = 'AND';
+
         ruleItem.innerHTML = `
             <div class="rule-content">
-                <div class="rule-if"><strong>ЕСЛИ:</strong> ${rule.if.join(' И ')}</div>
+                <div class="rule-header">
+                    <span class="rule-operator-badge ${mainOperator.toLowerCase()}">
+                        ${getOperatorDisplay(mainOperator)}
+                    </span>
+                    <span class="rule-cf">CF: ${rule.cf.toFixed(2)}</span>
+                </div>
+                <div class="rule-if"><strong>ЕСЛИ:</strong> ${formatRuleConditions(rule.if)}</div>
                 <div class="rule-then"><strong>ТО:</strong> ${rule.then}</div>
-                <div class="rule-cf">CF: ${rule.cf.toFixed(2)}</div>
             </div>
         `;
         rulesList.appendChild(ruleItem);
     });
+}
+
+function formatRuleConditions(conditions) {
+    return conditions.map((cond, i) => {
+        let result = cond.fact;
+        if (cond.operator && i < conditions.length - 1) {
+            result += ` <span class="rule-operator-badge ${cond.operator.toLowerCase()}">${getOperatorDisplay(cond.operator)}</span>`;
+        }
+        return result;
+    }).join(' ');
 }
 
 function displayInferenceResults(inferred) {
@@ -438,6 +518,16 @@ function loadCurrentState() {
         .catch(error => {
             console.error('Error:', error);
         });
+}
+
+function getOperatorDisplay(operator) {
+    const displayMap = {
+        'AND': 'И',
+        'OR': 'ИЛИ',
+        'NOT': 'НЕТ',
+        '': ''
+    };
+    return displayMap[operator] || operator;
 }
 
 document.addEventListener('keypress', function(event) {

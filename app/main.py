@@ -43,7 +43,6 @@ async def read_root(request: Request):
 async def get_knowledge_bases():
     try:
         files = kb_manager.list_knowledge_bases()
-        print(len(files))
         return {"success": True, "files": files}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -89,6 +88,7 @@ async def add_fact(fact_data: dict):
 @app.delete("/api/fact/{fact:path}")
 async def delete_fact(fact: str):
     try:
+        import urllib.parse
         decoded_fact = urllib.parse.unquote(fact)
         expert_system.delete_fact(decoded_fact)
         return {"success": True, "facts": expert_system.facts}
@@ -130,6 +130,7 @@ async def make_inference():
 @app.get("/api/current-state")
 async def get_current_state():
     return {
+        "success": True,
         "facts": expert_system.facts,
         "rules": expert_system.rules
     }

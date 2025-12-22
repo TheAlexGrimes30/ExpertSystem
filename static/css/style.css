@@ -244,6 +244,29 @@ header p {
     font-size: 0.9em;
 }
 
+.hint-box {
+    background: #e9ecef;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border-left: 4px solid #667eea;
+}
+
+.hint-box p {
+    margin-bottom: 10px;
+    font-weight: 500;
+}
+
+.hint-box ul {
+    padding-left: 20px;
+    margin-bottom: 0;
+}
+
+.hint-box li {
+    margin-bottom: 5px;
+    font-size: 0.9em;
+}
+
 .list-container {
     margin-top: 25px;
 }
@@ -296,6 +319,35 @@ header p {
 
 .fact-text, .rule-if, .rule-then {
     line-height: 1.4;
+}
+
+.rule-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.rule-operator-badge {
+    background: #6c757d;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.75em;
+    font-weight: 500;
+}
+
+.rule-operator-badge.and {
+    background: #28a745;
+}
+
+.rule-operator-badge.or {
+    background: #ffc107;
+    color: #212529;
+}
+
+.rule-operator-badge.not {
+    background: #dc3545;
 }
 
 .fact-cf, .rule-cf {

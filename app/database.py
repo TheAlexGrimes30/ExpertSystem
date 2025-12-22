@@ -3,7 +3,6 @@ import os
 from pathlib import Path
 from typing import List, Dict, Any
 
-
 class KnowledgeBaseManager:
     def __init__(self, base_dir: str = "knowledge_base"):
         self.base_dir = Path(base_dir)
@@ -13,7 +12,6 @@ class KnowledgeBaseManager:
         """Получить список всех JSON файлов"""
         json_files = []
         for file in self.base_dir.glob("*.json"):
-            print(file.name)
             json_files.append(file.name)
         return sorted(json_files)
 
@@ -26,7 +24,6 @@ class KnowledgeBaseManager:
         with open(filepath, 'r', encoding='utf-8') as f:
             data = json.load(f)
 
-        # Валидация структуры
         if not isinstance(data, dict):
             raise ValueError("Неверный формат файла")
 
@@ -44,7 +41,6 @@ class KnowledgeBaseManager:
 
         filepath = self.base_dir / filename
 
-        # Проверяем, существует ли файл
         counter = 1
         original_filename = filename
         while filepath.exists():
