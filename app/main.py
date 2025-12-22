@@ -13,13 +13,15 @@ from app.expert_system import ExpertSystem
 
 app = FastAPI(title="Экспертная система по методу Шортлиффа")
 
-Path("static/css").mkdir(parents=True, exist_ok=True)
-Path("static/js").mkdir(parents=True, exist_ok=True)
-Path("templates").mkdir(parents=True, exist_ok=True)
-Path("knowledge_base").mkdir(parents=True, exist_ok=True)
+BASE_DIR = Path(__file__).resolve().parent.parent
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
-templates = Jinja2Templates(directory="templates")
+(BASE_DIR / "static/css").mkdir(parents=True, exist_ok=True)
+(BASE_DIR / "static/js").mkdir(parents=True, exist_ok=True)
+(BASE_DIR / "templates").mkdir(parents=True, exist_ok=True)
+(BASE_DIR / "knowledge_base").mkdir(parents=True, exist_ok=True)
+
+app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
+templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 app.add_middleware(
     CORSMiddleware,
@@ -133,6 +135,8 @@ if __name__ == "__main__":
     print("=" * 50)
     print(f"Сервер запускается на http://localhost:{port}")
     print(f"Для остановки сервера нажмите Ctrl+C")
+    print("=" * 50)
+    print(f"BASE DIR: {BASE_DIR}")
     print("=" * 50)
 
     uvicorn.run(
