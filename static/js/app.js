@@ -3,10 +3,9 @@ let currentRules = [];
 let selectedFact = null;
 let selectedRule = null;
 let currentFilename = null;
-let currentQueryResult = null;
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Expert System loaded');
+    console.log('Универсальная экспертная система загружена');
     loadKnowledgeBases();
     loadCurrentState();
     updateCounters();
@@ -27,15 +26,17 @@ function showTab(tabName) {
         tabElement.classList.add('active');
     }
 
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        if (btn.textContent.includes(
+    const tabBtn = Array.from(document.querySelectorAll('.tab-btn')).find(btn =>
+        btn.textContent.includes(
             tabName === 'facts' ? 'Факты' :
             tabName === 'rules' ? 'Правила' :
-            'Запрос'
-        )) {
-            btn.classList.add('active');
-        }
-    });
+            'Диагностика'
+        )
+    );
+
+    if (tabBtn) {
+        tabBtn.classList.add('active');
+    }
 }
 
 function addOrEditFact() {
@@ -168,57 +169,6 @@ function addOrEditRule() {
         return;
     }
 
-    if (rawConditions.length === 1) {
-        const singleCondition = rawConditions[0];
-        const hasOperator = ['И', 'ИЛИ', 'НЕТ'].some(op => singleCondition.endsWith(' ' + op));
-
-        if (!hasOperator) {
-            const conditions = [{
-                fact: singleCondition,
-                operator: ''
-            }];
-
-            const conclusion = conclusionInput.value.trim();
-            const cf = parseFloat(ruleCFInput.value);
-
-            if (!conclusion) {
-                alert('Пожалуйста, введите заключение');
-                return;
-            }
-
-            if (isNaN(cf) || cf < 0 || cf > 1) {
-                alert('Коэффициент уверенности должен быть числом от 0 до 1');
-                return;
-            }
-
-            const ruleData = {
-                conditions: conditions,
-                conclusion: conclusion,
-                cf: cf
-            };
-
-            fetch('/api/rule', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(ruleData)
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    currentRules = data.rules;
-                    displayRules();
-                    clearRuleInputs();
-                    updateCounters();
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Ошибка при сохранении правила');
-            });
-            return;
-        }
-    }
-
     try {
         const conditions = parseConditions(rawConditions);
         const conclusion = conclusionInput.value.trim();
@@ -245,19 +195,19 @@ function addOrEditRule() {
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(ruleData)
         })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            currentRules = data.rules;
-            displayRules();
-            clearRuleInputs();
-            updateCounters();
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Ошибка при сохранении правила');
-    });
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                currentRules = data.rules;
+                displayRules();
+                clearRuleInputs();
+                updateCounters();
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Ошибка при сохранении правила');
+        });
     } catch (error) {
         console.error('Error parsing conditions:', error);
         alert('Ошибка при разборе условий. Проверьте синтаксис.');
@@ -329,34 +279,16 @@ function formatConditionsForInput(conditions) {
     }).join(', ');
 }
 
-function makeInference() {
-    fetch('/api/infer', {
-        method: 'POST'
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            displayInferenceResults(data.inferred);
-            updateCounters();
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Ошибка при выполнении вывода');
-    });
-}
-
 function executeQuery() {
     const query = document.getElementById('queryInput').value.trim();
 
     if (!query) {
-        alert('Пожалуйста, введите запрос');
+        alert('Пожалуйста, введите симптомы через запятую');
         return;
     }
 
-    // Показываем индикатор загрузки
     const queryResults = document.getElementById('queryResults');
-    queryResults.innerHTML = '<div class="empty-message">Выполняется запрос...</div>';
+    queryResults.innerHTML = '<div class="empty-message">Выполняется диагностика...</div>';
 
     fetch('/api/query', {
         method: 'POST',
@@ -366,14 +298,13 @@ function executeQuery() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            currentQueryResult = data.result;
             displayQueryResults(query, data.result);
         } else {
             queryResults.innerHTML = `
                 <div class="query-result-item not-found">
                     <div class="query-result-header">
                         <i class="fas fa-exclamation-circle"></i>
-                        <div class="query-result-title">Ошибка запроса</div>
+                        <div class="query-result-title">Ошибка</div>
                     </div>
                     <div class="query-result-details">
                         <p>${data.error || 'Произошла ошибка при выполнении запроса'}</p>
@@ -391,7 +322,7 @@ function executeQuery() {
                     <div class="query-result-title">Ошибка соединения</div>
                 </div>
                 <div class="query-result-details">
-                    <p>Не удалось выполнить запрос. Проверьте подключение к серверу.</p>
+                    <p>Не удалось выполнить диагностику. Проверьте подключение к серверу.</p>
                 </div>
             </div>
         `;
@@ -401,106 +332,140 @@ function executeQuery() {
 function displayQueryResults(query, result) {
     const queryResults = document.getElementById('queryResults');
 
-    let html = '';
-
-    if (result.found_directly) {
-        html = `
-            <div class="query-result-item found">
-                <div class="query-result-header">
-                    <i class="fas fa-check-circle"></i>
-                    <div class="query-result-title">Факт найден</div>
-                </div>
-                <div class="query-result-details">
-                    <p>Факт "<strong>${query}</strong>" присутствует в базе знаний.</p>
-                    <p>
-                        <span class="query-result-cf">CF: ${result.direct_cf.toFixed(4)}</span>
-                        ${result.direct_cf >= 0.7 ? '<span style="color: #28a745;">(Высокая уверенность)</span>' :
-                          result.direct_cf >= 0.4 ? '<span style="color: #ffc107;">(Средняя уверенность)</span>' :
-                          '<span style="color: #dc3545;">(Низкая уверенность)</span>'}
-                    </p>
-                </div>
+    let html = `
+        <div class="diagnosis-header">
+            <div class="query-result-header">
+                <i class="fas fa-stethoscope"></i>
+                <div class="query-result-title">Анализ симптомов</div>
             </div>
-        `;
-    } else if (result.can_be_inferred) {
-        html = `
-            <div class="query-result-item inferrable">
-                <div class="query-result-header">
-                    <i class="fas fa-brain"></i>
-                    <div class="query-result-title">Факт может быть выведен</div>
-                </div>
-                <div class="query-result-details">
-                    <p>Факт "<strong>${query}</strong>" может быть выведен из правил.</p>
-                    <p>Максимальная возможная уверенность: <span class="query-result-cf">CF: ${result.max_possible_cf.toFixed(4)}</span></p>
-                </div>
-        `;
+            <div class="symptoms-input">
+                <p><strong>Введенные симптомы:</strong> ${result.query}</p>
+            </div>
+        </div>
+    `;
 
-        if (result.rules_that_can_infer && result.rules_that_can_infer.length > 0) {
-            html += `
-                <div class="query-result-rules">
-                    <h5>Правила для вывода:</h5>
-            `;
+    // Показываем сопоставленные симптомы
+    if (result.matched_symptoms && result.matched_symptoms.length > 0) {
+        html += '<div class="symptoms-analysis">';
+        html += '<h5><i class="fas fa-check-circle"></i> Распознанные симптомы:</h5>';
+        html += '<div class="symptoms-list">';
 
-            result.rules_that_can_infer.forEach((ruleInfo, index) => {
-                const conditionsText = formatRuleConditionsForQuery(ruleInfo.rule.if);
+        result.matched_symptoms.forEach((symptom, index) => {
+            if (symptom.matched_fact) {
                 html += `
-                    <div class="rule-path">
-                        <div class="rule-text">
-                            <strong>Правило ${index + 1}:</strong> ЕСЛИ ${conditionsText} ТО ${ruleInfo.rule.then}
-                            <span class="query-result-cf" style="margin-left: 10px;">CF правила: ${ruleInfo.rule.cf.toFixed(2)}</span>
-                        </div>
-                        <div class="rule-calc">
-                            Максимальный CF: min(${ruleInfo.condition_cfs.map(cf => cf.toFixed(2)).join(', ')}) × ${ruleInfo.rule.cf.toFixed(2)} = ${(ruleInfo.max_cf).toFixed(4)}
-                        </div>
+                    <div class="symptom-item matched">
+                        <i class="fas fa-check"></i>
+                        <span class="symptom-name">${symptom.input} → ${symptom.matched_fact}</span>
+                        <span class="symptom-cf">CF: ${symptom.cf.toFixed(2)}</span>
                     </div>
                 `;
-            });
-
-            html += `</div>`;
-        }
-
-        if (result.required_facts && result.required_facts.length > 0) {
-            html += `
-                <div class="required-facts">
-                    <h5>Необходимые факты:</h5>
-            `;
-
-            result.required_facts.forEach(factInfo => {
-                const statusClass = factInfo.in_facts ? 'found' : 'missing';
-                const icon = factInfo.in_facts ? 'fa-check-circle' : 'fa-times-circle';
-                const statusText = factInfo.in_facts ? 'Есть в базе' : 'Отсутствует';
-                const cfText = factInfo.in_facts ? `CF: ${factInfo.cf.toFixed(2)}` : 'CF: ?';
-
+            } else {
                 html += `
-                    <div class="fact-status ${statusClass}">
-                        <i class="fas ${icon}"></i>
-                        <div class="fact-name">${factInfo.fact}</div>
-                        <div class="fact-cf-small">${cfText}</div>
-                        <div class="fact-status-text">${statusText}</div>
+                    <div class="symptom-item not-found">
+                        <i class="fas fa-times"></i>
+                        <span class="symptom-name">${symptom.input}</span>
+                        <span class="symptom-cf">Не найден в базе</span>
                     </div>
                 `;
-            });
+            }
+        });
 
-            html += `</div>`;
-        }
+        html += '</div></div>';
+    }
 
-        html += `</div>`;
+    // Показываем диагнозы
+    if (result.diagnoses && result.diagnoses.length > 0) {
+        html += '<div class="diagnoses-section">';
+        html += '<h5><i class="fas fa-diagnoses"></i> Возможные диагнозы:</h5>';
+
+        result.diagnoses.forEach((diagnosis, index) => {
+            const rank = index + 1;
+            const confidenceClass = getConfidenceClass(diagnosis.cf);
+
+            html += `
+                <div class="diagnosis-card ${confidenceClass}">
+                    <div class="diagnosis-rank">#${rank}</div>
+                    <div class="diagnosis-content">
+                        <div class="diagnosis-main">
+                            <h5 class="diagnosis-name">
+                                <i class="fas fa-file-medical-alt"></i>
+                                ${diagnosis.name}
+                            </h5>
+                            <div class="diagnosis-confidence">
+                                <span class="confidence-badge ${confidenceClass}">
+                                    <i class="fas fa-${getConfidenceIcon(diagnosis.cf)}"></i>
+                                    ${diagnosis.confidence} уверенность
+                                </span>
+                                <span class="cf-value">CF: ${diagnosis.cf.toFixed(4)}</span>
+                            </div>
+                        </div>
+
+                        <div class="diagnosis-details">
+                            <div class="detail-row">
+                                <strong>На основании:</strong>
+                                <span class="conditions-list">${diagnosis.conditions.join(' И ')}</span>
+                            </div>
+                            <div class="detail-row">
+                                <strong>Расчет:</strong>
+                                <code class="cf-calculation">
+                                    min(${diagnosis.min_condition_cf.toFixed(2)}) × ${diagnosis.rule_cf.toFixed(2)} = ${diagnosis.cf.toFixed(4)}
+                                </code>
+                            </div>
+                            <div class="detail-row">
+                                <strong>Совпавшие симптомы:</strong>
+                                <span class="matched-symptoms">${diagnosis.matched_conditions.join(', ')}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        html += '</div>';
     } else {
-        html = `
-            <div class="query-result-item not-found">
-                <div class="query-result-header">
-                    <i class="fas fa-times-circle"></i>
-                    <div class="query-result-title">Факт не найден</div>
-                </div>
-                <div class="query-result-details">
-                    <p>Факт "<strong>${query}</strong>" не найден в базе знаний и не может быть выведен из правил.</p>
-                    ${result.suggestions && result.suggestions.length > 0 ? `
-                        <div class="query-examples">
-                            <h5>Возможно, вы имели в виду:</h5>
-                            <ul>
-                                ${result.suggestions.map(suggestion => `<li>${suggestion}</li>`).join('')}
-                            </ul>
+        // Нет диагнозов
+        html += `
+            <div class="no-diagnosis">
+                <div class="query-result-item not-found">
+                    <div class="query-result-header">
+                        <i class="fas fa-question-circle"></i>
+                        <div class="query-result-title">Диагноз не найден</div>
+                    </div>
+                    <div class="query-result-details">
+                        <p>По указанным симптомам не удалось поставить точный диагноз.</p>
+        `;
+
+        if (result.no_diagnosis_info && result.no_diagnosis_info.almost_rules) {
+            html += `
+                <div class="almost-diagnoses">
+                    <p><strong>Близкие диагнозы:</strong></p>
+            `;
+
+            result.no_diagnosis_info.almost_rules.forEach((rule, index) => {
+                const percent = Math.round((rule.matched / rule.total) * 100);
+                html += `
+                    <div class="almost-rule">
+                        <div class="almost-diagnosis">${rule.diagnosis}</div>
+                        <div class="almost-progress">
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${percent}%"></div>
+                            </div>
+                            <span class="progress-text">${rule.matched}/${rule.total} условий (${percent}%)</span>
                         </div>
-                    ` : ''}
+                        ${rule.missing && rule.missing.length > 0 ? `
+                            <div class="missing-conditions">
+                                <strong>Не хватает:</strong> ${rule.missing.join(', ')}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            });
+
+            html += '</div>';
+        }
+
+        html += `
+                    </div>
                 </div>
             </div>
         `;
@@ -509,16 +474,20 @@ function displayQueryResults(query, result) {
     queryResults.innerHTML = html;
 }
 
-function formatRuleConditionsForQuery(conditions) {
-    if (!conditions || conditions.length === 0) return '';
+function getConfidenceClass(cf) {
+    if (cf >= 0.8) return 'very-high';
+    if (cf >= 0.6) return 'high';
+    if (cf >= 0.4) return 'medium';
+    if (cf >= 0.2) return 'low';
+    return 'very-low';
+}
 
-    return conditions.map((cond, i) => {
-        let result = cond.fact;
-        if (cond.operator && i < conditions.length - 1) {
-            result += ` ${getOperatorDisplay(cond.operator)}`;
-        }
-        return result;
-    }).join(' ');
+function getConfidenceIcon(cf) {
+    if (cf >= 0.8) return 'check-circle';
+    if (cf >= 0.6) return 'check';
+    if (cf >= 0.4) return 'info-circle';
+    if (cf >= 0.2) return 'exclamation-triangle';
+    return 'times-circle';
 }
 
 function loadKnowledgeBases() {
@@ -531,7 +500,7 @@ function loadKnowledgeBases() {
 
                 if (data.files.length === 0) {
                     const option = document.createElement('option');
-                    option.textContent = 'Нет доступных баз знаний';
+                    option.textContent = 'Нет сохраненных баз знаний';
                     option.disabled = true;
                     select.appendChild(option);
                 } else {
@@ -554,7 +523,7 @@ function loadSelectedBase() {
     const select = document.getElementById('knowledgeBaseList');
     const selectedFile = select.value;
 
-    if (!selectedFile || selectedFile.includes('Нет доступных')) {
+    if (!selectedFile || selectedFile.includes('Нет сохраненных')) {
         alert('Пожалуйста, выберите файл для загрузки');
         return;
     }
@@ -581,8 +550,8 @@ function loadSelectedBase() {
 }
 
 function saveCurrentBase() {
-    const filename = prompt('Введите имя для нового файла базы знаний:',
-                           currentFilename || 'my_knowledge_base');
+    const filename = prompt('Введите имя для новой базы знаний:',
+                           currentFilename || 'моя_база_знаний');
 
     if (!filename) {
         return;
@@ -615,12 +584,12 @@ function deleteSelectedBase() {
     const select = document.getElementById('knowledgeBaseList');
     const selectedFile = select.value;
 
-    if (!selectedFile || selectedFile.includes('Нет доступных')) {
+    if (!selectedFile || selectedFile.includes('Нет сохраненных')) {
         alert('Пожалуйста, выберите файл для удаления');
         return;
     }
 
-    if (!confirm(`Удалить файл "${selectedFile}"?`)) {
+    if (!confirm(`Удалить базу знаний "${selectedFile}"?`)) {
         return;
     }
 
@@ -631,12 +600,12 @@ function deleteSelectedBase() {
     .then(data => {
         if (data.success) {
             loadKnowledgeBases();
-            alert('Файл успешно удален');
+            alert('База знаний успешно удалена');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Ошибка при удалении файла');
+        alert('Ошибка при удалении базы знаний');
     });
 }
 
@@ -713,26 +682,6 @@ function formatRuleConditions(conditions) {
         }
         return result;
     }).join(' ');
-}
-
-function displayInferenceResults(inferred) {
-    const resultsList = document.getElementById('inferenceResults');
-    resultsList.innerHTML = '';
-
-    if (!inferred || Object.keys(inferred).length === 0) {
-        resultsList.innerHTML = '<div class="inference-empty">Новые выводы отсутствуют</div>';
-        return;
-    }
-
-    Object.entries(inferred).forEach(([fact, cf]) => {
-        const resultItem = document.createElement('div');
-        resultItem.className = 'inference-result';
-        resultItem.innerHTML = `
-            <div class="inference-fact">${fact}</div>
-            <div class="inference-cf">Уверенность: <strong>${cf.toFixed(4)}</strong></div>
-        `;
-        resultsList.appendChild(resultItem);
-    });
 }
 
 function updateCounters() {

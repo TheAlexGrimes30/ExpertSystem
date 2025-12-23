@@ -3,14 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Экспертная система по методу Шортлиффа</title>
+    <title>Универсальная экспертная система</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1><i class="fas fa-brain"></i> Экспертная система по методу Шортлиффа</h1>
+            <h1><i class="fas fa-brain"></i> Универсальная экспертная система</h1>
+            <p class="subtitle">Система логического вывода на основе метода Шортлиффа</p>
         </header>
 
         <div class="main-content">
@@ -18,20 +19,20 @@
                 <h2><i class="fas fa-database"></i> База знаний</h2>
 
                 <div class="file-management">
-                    <h3>Файлы базы знаний</h3>
+                    <h3>Управление базами знаний</h3>
                     <div class="file-controls">
                         <select id="knowledgeBaseList" size="5">
                             <option>Загрузка...</option>
                         </select>
                         <div class="file-buttons">
                             <button onclick="loadSelectedBase()" class="btn btn-primary">
-                                <i class="fas fa-folder-open"></i> Загрузить выбранную
+                                <i class="fas fa-folder-open"></i> Загрузить
                             </button>
                             <button onclick="saveCurrentBase()" class="btn btn-success">
-                                <i class="fas fa-save"></i> Сохранить текущую
+                                <i class="fas fa-save"></i> Сохранить
                             </button>
                             <button onclick="deleteSelectedBase()" class="btn btn-danger">
-                                <i class="fas fa-trash"></i> Удалить выбранную
+                                <i class="fas fa-trash"></i> Удалить
                             </button>
                         </div>
                     </div>
@@ -40,12 +41,16 @@
                 <div class="current-state">
                     <h3>Текущее состояние</h3>
                     <div class="stats">
-                        <span class="stat">
-                            <i class="fas fa-list-check"></i> Фактов: <span id="factCount">0</span>
-                        </span>
-                        <span class="stat">
-                            <i class="fas fa-rules"></i> Правил: <span id="ruleCount">0</span>
-                        </span>
+                        <div class="stat">
+                            <i class="fas fa-list-check"></i>
+                            <div class="stat-label">Фактов</div>
+                            <div class="stat-value" id="factCount">0</div>
+                        </div>
+                        <div class="stat">
+                            <i class="fas fa-sitemap"></i>
+                            <div class="stat-label">Правил</div>
+                            <div class="stat-value" id="ruleCount">0</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -59,17 +64,17 @@
                         <i class="fas fa-sitemap"></i> Правила
                     </button>
                     <button class="tab-btn" onclick="showTab('query')">
-                        <i class="fas fa-question-circle"></i> Запрос
+                        <i class="fas fa-stethoscope"></i> Диагностика
                     </button>
                 </div>
 
                 <div id="factsTab" class="tab-content active">
-                    <h3>Управление фактами</h3>
+                    <h3><i class="fas fa-edit"></i> Управление фактами</h3>
                     <div class="input-group">
-                        <input type="text" id="factInput" placeholder="Введите факт">
+                        <input type="text" id="factInput" placeholder="Введите факт (например: кашель)">
                         <input type="number" id="factCF" placeholder="CF (0-1)" min="0" max="1" step="0.1" value="0.8">
                         <button onclick="addOrEditFact()" class="btn btn-primary">
-                            <i class="fas fa-plus"></i> Добавить/Изменить
+                            <i class="fas fa-plus"></i> Добавить
                         </button>
                         <button onclick="clearFactInputs()" class="btn btn-secondary">
                             <i class="fas fa-times"></i> Очистить
@@ -81,20 +86,22 @@
                         <div id="factsList" class="scrollable-list">
                             <div class="empty-message">Факты отсутствуют</div>
                         </div>
-                        <button onclick="deleteSelectedFact()" class="btn btn-danger">
-                            <i class="fas fa-trash"></i> Удалить выбранный факт
-                        </button>
+                        <div class="action-buttons">
+                            <button onclick="deleteSelectedFact()" class="btn btn-danger">
+                                <i class="fas fa-trash"></i> Удалить выбранный
+                            </button>
+                        </div>
                     </div>
                 </div>
 
                 <div id="rulesTab" class="tab-content">
-                    <h3>Управление правилами</h3>
+                    <h3><i class="fas fa-cogs"></i> Управление правилами</h3>
                     <div class="input-group">
                         <input type="text" id="conditionsInput" placeholder="Условия через запятую">
-                        <input type="text" id="conclusionInput" placeholder="Заключение">
+                        <input type="text" id="conclusionInput" placeholder="Заключение (диагноз)">
                         <input type="number" id="ruleCF" placeholder="CF правила" min="0" max="1" step="0.1" value="0.9">
                         <button onclick="addOrEditRule()" class="btn btn-primary">
-                            <i class="fas fa-plus"></i> Добавить/Изменить
+                            <i class="fas fa-plus"></i> Добавить
                         </button>
                         <button onclick="clearRuleInputs()" class="btn btn-secondary">
                             <i class="fas fa-times"></i> Очистить
@@ -104,17 +111,26 @@
                     <div class="hint-box">
                         <p><strong>Синтаксис условий:</strong></p>
                         <ul>
-                            <li><strong>Просто факт:</strong> <code>Двигатель сломался</code></li>
-                            <li><strong>Несколько фактов (AND по умолчанию):</strong> <code>Двигатель сломался, Резина стёрлась</code></li>
-                            <li><strong>С оператором И:</strong> <code>Двигатель сломался И, Резина стёрлась</code></li>
-                            <li><strong>С оператором ИЛИ:</strong> <code>Двигатель сломался ИЛИ, Резина стёрлась</code></li>
-                            <li><strong>С оператором НЕТ:</strong> <code>Двигатель сломался НЕТ</code></li>
+                            <li><strong>Просто факт:</strong> <code>факт1</code></li>
+                            <li><strong>Несколько фактов (AND по умолчанию):</strong> <code>факт1, факт2</code></li>
+                            <li><strong>С оператором И:</strong> <code>факт1 И, факт2</code></li>
+                            <li><strong>С оператором ИЛИ:</strong> <code>факт1 ИЛИ, факт2</code></li>
+                            <li><strong>С оператором НЕТ:</strong> <code>факт1 НЕТ</code></li>
+                            <li><strong>Комбинированные:</strong> <code>факт1, И, факт2, ИЛИ, факт3</code></li>
                         </ul>
-                        <p><strong>Примеры:</strong></p>
+
+                        <p><strong>Пример медицинской диагностики:</strong></p>
                         <ul>
-                            <li><code>Двигатель сломался</code> (простое правило)</li>
-                            <li><code>Двигатель сломался, Резина стёрлась</code> (оба условия должны быть истинны)</li>
-                            <li><code>Двигатель сломался НЕТ, ИЛИ, Резина стёрлась</code> (сложное условие)</li>
+                            <li>Условия: <code>кашель, температура, слабость</code></li>
+                            <li>Заключение: <code>грипп</code></li>
+                            <li>CF: <code>0.9</code></li>
+                        </ul>
+
+                        <p><strong>Пример с операторами:</strong></p>
+                        <ul>
+                            <li>Условия: <code>кашель, температура, насморк НЕТ</code></li>
+                            <li>Заключение: <code>грипп</code></li>
+                            <li>CF: <code>0.85</code></li>
                         </ul>
                     </div>
 
@@ -123,68 +139,59 @@
                         <div id="rulesList" class="scrollable-list">
                             <div class="empty-message">Правила отсутствуют</div>
                         </div>
-                        <button onclick="deleteSelectedRule()" class="btn btn-danger">
-                            <i class="fas fa-trash"></i> Удалить выбранное правило
-                        </button>
+                        <div class="action-buttons">
+                            <button onclick="deleteSelectedRule()" class="btn btn-danger">
+                                <i class="fas fa-trash"></i> Удалить выбранное
+                            </button>
+                        </div>
                     </div>
                 </div>
 
                 <div id="queryTab" class="tab-content">
-                    <h3>Запрос к экспертной системе</h3>
+                    <h3><i class="fas fa-search"></i> Диагностика по симптомам</h3>
 
                     <div class="query-section">
                         <div class="input-group">
-                            <input type="text" id="queryInput" placeholder="Введите факт для проверки (например: Грипп)">
+                            <input type="text" id="queryInput" placeholder="Введите симптомы через запятую (например: кашель, температура, насморк)">
                             <button onclick="executeQuery()" class="btn btn-primary">
-                                <i class="fas fa-search"></i> Проверить
+                                <i class="fas fa-stethoscope"></i> Диагностировать
                             </button>
                         </div>
 
                         <div class="hint-box">
-                            <p><strong>Что можно узнать:</strong></p>
+                            <p><strong>Как работает диагностика:</strong></p>
                             <ul>
-                                <li><strong>Есть ли факт в базе знаний</strong> и с какой уверенностью</li>
-                                <li><strong>Можно ли вывести факт</strong> из существующих правил</li>
-                                <li><strong>Какие правила</strong> позволяют вывести этот факт</li>
-                                <li><strong>Что нужно для вывода</strong> этого факта</li>
+                                <li>Система анализирует введенные симптомы</li>
+                                <li>Сопоставляет их с фактами в базе знаний</li>
+                                <li>Применяет правила для постановки диагноза</li>
+                                <li>Рассчитывает уверенность в диагнозе (CF)</li>
+                                <li>Выдает возможные диагнозы с оценкой уверенности</li>
                             </ul>
                             <p><strong>Примеры запросов:</strong></p>
                             <ul>
-                                <li><code>Грипп</code> - проверка наличия заболевания</li>
-                                <li><code>Нужен ремонт</code> - проверка необходимости ремонта</li>
-                                <li><code>Инвестировать</code> - проверка рекомендации</li>
+                                <li><code>кашель, температура</code> - проверка на грипп</li>
+                                <li><code>насморк, чихание</code> - проверка на аллергию</li>
+                                <li><code>головная боль, температура</code> - общая диагностика</li>
                             </ul>
                         </div>
 
                         <div class="query-results">
-                            <h4>Результаты запроса</h4>
+                            <h4>Результаты диагностики</h4>
                             <div id="queryResults" class="scrollable-list">
-                                <div class="empty-message">Введите запрос и нажмите "Проверить"</div>
+                                <div class="empty-message">Введите симптомы и нажмите "Диагностировать"</div>
                             </div>
                         </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="panel inference-panel">
-                <h2><i class="fas fa-cogs"></i> Логический вывод</h2>
-
-                <button onclick="makeInference()" class="btn btn-infer">
-                    <i class="fas fa-play"></i> Выполнить вывод
-                </button>
-
-                <div class="results">
-                    <h3>Результаты вывода</h3>
-                    <div id="inferenceResults" class="scrollable-list">
-                        <div class="inference-empty">Нажмите "Выполнить вывод"</div>
                     </div>
                 </div>
             </div>
         </div>
 
         <footer>
-            <p>Экспертная система по методу Шортлиффа &copy; 2024</p>
-            <p class="hint">CF (Certainty Factor) - коэффициент уверенности от 0 (нет уверенности) до 1 (полная уверенность)</p>
+            <div class="footer-content">
+                <p><strong>Универсальная экспертная система</strong> &copy; 2024</p>
+                <p class="hint">CF (Certainty Factor) - коэффициент уверенности от 0 (нет уверенности) до 1 (полная уверенность)</p>
+                <p class="hint">Поддерживает логические операторы: И, ИЛИ, НЕТ</p>
+            </div>
         </footer>
     </div>
 

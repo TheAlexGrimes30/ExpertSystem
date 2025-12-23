@@ -6,42 +6,42 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import KnowledgeBaseManager
 from app.expert_system import ExpertSystem
 
-app = FastAPI(title="Экспертная система по методу Шортлиффа")
+app = FastAPI(
+    title="Универсальная экспертная система",
+    description="Система логического вывода на основе метода Шортлиффа",
+    version="1.0.0"
+)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Создаем необходимые директории
 (BASE_DIR / "static/css").mkdir(parents=True, exist_ok=True)
 (BASE_DIR / "static/js").mkdir(parents=True, exist_ok=True)
 (BASE_DIR / "templates").mkdir(parents=True, exist_ok=True)
 (BASE_DIR / "knowledge_base").mkdir(parents=True, exist_ok=True)
 
+# Монтируем статические файлы
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:8000", "http://127.0.0.1:8000"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
+# Инициализируем компоненты системы
 kb_manager = KnowledgeBaseManager(str(BASE_DIR / "knowledge_base"))
 expert_system = ExpertSystem()
 
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
+    """Главная страница приложения"""
     return templates.TemplateResponse("index.html", {"request": request})
 
 
 @app.get("/api/knowledge-bases")
 async def get_knowledge_bases():
+    """Получить список доступных баз знаний"""
     try:
         files = kb_manager.list_knowledge_bases()
         return {"success": True, "files": files}
@@ -51,6 +51,7 @@ async def get_knowledge_bases():
 
 @app.get("/api/knowledge-base/{filename}")
 async def load_knowledge_base(filename: str):
+    """Загрузить базу знаний из файла"""
     try:
         data = kb_manager.load_knowledge_base(filename)
         expert_system.load_from_dict(data)
@@ -66,6 +67,7 @@ async def load_knowledge_base(filename: str):
 
 @app.post("/api/knowledge-base/{filename}")
 async def save_knowledge_base(filename: str, data: dict):
+    """Сохранить текущую базу знаний в файл"""
     try:
         kb_manager.save_knowledge_base(filename, data)
         return {"success": True}
@@ -75,6 +77,7 @@ async def save_knowledge_base(filename: str, data: dict):
 
 @app.delete("/api/knowledge-base/{filename}")
 async def delete_knowledge_base(filename: str):
+    """Удалить файл базы знаний"""
     try:
         kb_manager.delete_knowledge_base(filename)
         return {"success": True}
@@ -84,6 +87,7 @@ async def delete_knowledge_base(filename: str):
 
 @app.post("/api/fact")
 async def add_fact(fact_data: dict):
+    """Добавить новый факт"""
     try:
         expert_system.add_fact(fact_data["fact"], fact_data["cf"])
         return {"success": True, "facts": expert_system.facts}
@@ -93,6 +97,7 @@ async def add_fact(fact_data: dict):
 
 @app.delete("/api/fact/{fact:path}")
 async def delete_fact(fact: str):
+    """Удалить факт"""
     try:
         import urllib.parse
         decoded_fact = urllib.parse.unquote(fact)
@@ -104,6 +109,7 @@ async def delete_fact(fact: str):
 
 @app.post("/api/rule")
 async def add_rule(rule_data: dict):
+    """Добавить новое правило"""
     try:
         expert_system.add_rule(
             rule_data["conditions"],
@@ -117,6 +123,7 @@ async def add_rule(rule_data: dict):
 
 @app.delete("/api/rule/{index}")
 async def delete_rule(index: int):
+    """Удалить правило по индексу"""
     try:
         expert_system.delete_rule(index)
         return {"success": True, "rules": expert_system.rules}
@@ -126,6 +133,7 @@ async def delete_rule(index: int):
 
 @app.post("/api/infer")
 async def make_inference():
+    """Выполнить логический вывод"""
     try:
         inferred = expert_system.infer()
         return {
@@ -139,16 +147,24 @@ async def make_inference():
 
 @app.post("/api/query")
 async def make_query(query_data: dict):
+    """Выполнить диагностику на основе симптомов"""
     try:
-        query = query_data.get("query", "").strip()
+        symptoms = query_data.get("query", "").strip()
 
-        if not query:
+        if not symptoms:
             return {
                 "success": False,
-                "error": "Пустой запрос"
+                "error": "Введите симптомы через запятую (например: кашель, температура, насморк)"
             }
 
-        result = expert_system.query(query)
+        result = expert_system.query(symptoms)
+
+        # Если query возвращает success=False (ошибка)
+        if "success" in result and not result["success"]:
+            return {
+                "success": False,
+                "error": result.get("error", "Ошибка при выполнении запроса")
+            }
 
         return {
             "success": True,
@@ -163,6 +179,7 @@ async def make_query(query_data: dict):
 
 @app.get("/api/current-state")
 async def get_current_state():
+    """Получить текущее состояние системы (факты и правила)"""
     return {
         "success": True,
         "facts": expert_system.facts,
@@ -170,20 +187,17 @@ async def get_current_state():
     }
 
 
-@app.get("/api/health")
-async def health_check():
-    return {"status": "ok", "service": "expert-system"}
-
-
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
 
-    print("=" * 50)
-    print("Экспертная система по методу Шортлиффа")
-    print("=" * 50)
-    print(f"Сервер запускается на http://localhost:{port}")
-    print(f"Для остановки сервера нажмите Ctrl+C")
-    print("=" * 50)
+    print("=" * 60)
+    print("УНИВЕРСАЛЬНАЯ ЭКСПЕРТНАЯ СИСТЕМА")
+    print("=" * 60)
+    print("Система логического вывода на основе метода Шортлиффа")
+    print("=" * 60)
+    print(f"Сервер запущен: http://localhost:{port}")
+    print("Для остановки нажмите Ctrl+C")
+    print("=" * 60)
 
     uvicorn.run(
         "app.main:app",

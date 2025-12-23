@@ -9,12 +9,6 @@ class ExpertSystem:
             raise ValueError("Коэффициент уверенности должен быть от 0 до 1")
         self.facts[fact] = cf
 
-    def edit_fact(self, old_fact: str, new_fact: str, new_cf: float):
-        """Изменить существующий факт"""
-        if old_fact in self.facts:
-            del self.facts[old_fact]
-        self.facts[new_fact] = new_cf
-
     def delete_fact(self, fact: str):
         """Удалить факт"""
         if fact in self.facts:
@@ -44,13 +38,6 @@ class ExpertSystem:
             "then": conclusion,
             "cf": cf
         })
-
-    def edit_rule(self, index: int, conditions: list, conclusion: str, cf: float):
-        """Изменить существующее правило"""
-        if 0 <= index < len(self.rules):
-            self.add_rule(conditions, conclusion, cf)
-            old_rule = self.rules.pop(index + 1)
-            self.rules[index] = old_rule
 
     def delete_rule(self, index: int):
         """Удалить правило по индексу"""
@@ -125,94 +112,187 @@ class ExpertSystem:
 
         return inferred
 
-    def query(self, query_fact: str):
-        """Выполнить запрос к экспертной системе"""
+    def query(self, symptoms_input: str):
+        """Выполнить диагностику на основе введенных симптомов"""
+        # Очищаем и нормализуем ввод
+        symptoms = [s.strip().lower() for s in symptoms_input.split(',') if s.strip()]
+
+        if not symptoms:
+            return {
+                "success": False,
+                "error": "Введите симптомы через запятую"
+            }
+
         result = {
-            "query": query_fact,
-            "found_directly": False,
-            "direct_cf": 0.0,
-            "can_be_inferred": False,
-            "max_possible_cf": 0.0,
-            "rules_that_can_infer": [],
-            "required_facts": [],
-            "suggestions": []
+            "success": True,
+            "query": symptoms_input,
+            "diagnoses": [],
+            "matched_symptoms": [],
+            "missing_for_diagnosis": {},
+            "no_diagnosis_info": None
         }
 
-        if query_fact in self.facts:
-            result["found_directly"] = True
-            result["direct_cf"] = self.facts[query_fact]
+        # 1. Определяем, какие симптомы есть в базе знаний
+        matched_symptoms = []
+        for symptom in symptoms:
+            found = False
+            for fact_name in self.facts.keys():
+                fact_lower = fact_name.lower()
+                symptom_lower = symptom.lower()
+                # Проверяем частичное совпадение
+                if (symptom_lower in fact_lower or
+                        fact_lower in symptom_lower or
+                        any(word in symptom_lower for word in fact_lower.split()) or
+                        any(word in fact_lower for word in symptom_lower.split())):
+                    matched_symptoms.append({
+                        "input": symptom,
+                        "matched_fact": fact_name,
+                        "cf": self.facts[fact_name]
+                    })
+                    found = True
+                    break
 
-        rules_that_conclude = []
-        for rule in self.rules:
-            if rule["then"] == query_fact:
-                rules_that_conclude.append(rule)
-
-        if rules_that_conclude:
-            result["can_be_inferred"] = True
-
-            for rule in rules_that_conclude:
-                condition_cfs = []
-                required_facts_for_rule = []
-
-                for condition in rule["if"]:
-                    fact = condition.get("fact", "")
-                    operator = condition.get("operator", "").upper()
-
-                    if fact in self.facts:
-                        fact_cf = self.facts[fact]
-                        if operator == "NOT":
-                            condition_cf = 1.0 - fact_cf
-                        else:
-                            condition_cf = fact_cf
-                        required_facts_for_rule.append({
-                            "fact": fact,
-                            "in_facts": True,
-                            "cf": fact_cf,
-                            "required": True
-                        })
-                    else:
-                        condition_cf = 1.0
-                        required_facts_for_rule.append({
-                            "fact": fact,
-                            "in_facts": False,
-                            "cf": 0.0,
-                            "required": True
-                        })
-
-                    condition_cfs.append(condition_cf)
-
-                if condition_cfs:
-                    condition_cf = min(condition_cfs) if condition_cfs else 0.0
-                else:
-                    condition_cf = 0.0
-
-                max_cf_for_rule = condition_cf * rule["cf"]
-
-                result["rules_that_can_infer"].append({
-                    "rule": rule,
-                    "condition_cfs": condition_cfs,
-                    "max_cf": max_cf_for_rule
+            if not found:
+                matched_symptoms.append({
+                    "input": symptom,
+                    "matched_fact": None,
+                    "cf": 0.0
                 })
 
-                for fact_info in required_facts_for_rule:
-                    if not any(f["fact"] == fact_info["fact"] for f in result["required_facts"]):
-                        result["required_facts"].append(fact_info)
+        result["matched_symptoms"] = matched_symptoms
 
-            if result["rules_that_can_infer"]:
-                result["max_possible_cf"] = max(
-                    rule_info["max_cf"]
-                    for rule_info in result["rules_that_can_infer"]
-                )
+        # 2. Ищем диагнозы на основе правил
+        possible_diagnoses = {}
 
-        if not result["found_directly"] and not result["can_be_inferred"]:
-            query_lower = query_fact.lower()
-            for fact in self.facts.keys():
-                if query_lower in fact.lower() or fact.lower() in query_lower:
-                    result["suggestions"].append(fact)
+        for rule in self.rules:
+            diagnosis_name = rule["then"]
+            rule_cf = rule["cf"]
 
-            result["suggestions"] = result["suggestions"][:5]
+            # Анализируем условия правила
+            rule_conditions = []
+            condition_results = []
+
+            for condition in rule["if"]:
+                fact = condition["fact"]
+                operator = condition.get("operator", "").upper()
+
+                # Ищем соответствие среди симптомов
+                condition_matched = False
+                condition_cf = 0.0
+
+                for symptom_info in matched_symptoms:
+                    if symptom_info["matched_fact"] == fact:
+                        if operator == "NOT":
+                            # Для NOT: уверенность = 1 - уверенность наличия
+                            condition_cf = 1.0 - symptom_info["cf"]
+                            condition_matched = (condition_cf > 0)
+                        else:
+                            condition_cf = symptom_info["cf"]
+                            condition_matched = (condition_cf > 0)
+                        break
+
+                rule_conditions.append({
+                    "fact": fact,
+                    "operator": operator,
+                    "matched": condition_matched,
+                    "cf": condition_cf
+                })
+
+                condition_results.append(condition_matched)
+
+            # Проверяем, выполнено ли правило
+            rule_satisfied = False
+
+            # Простая логика: все условия должны быть выполнены
+            if all(condition_results):
+                rule_satisfied = True
+            else:
+                # Проверяем сложные условия с операторами
+                # Пока реализуем простую логику AND
+                continue
+
+            if rule_satisfied:
+                # Рассчитываем CF для этого правила
+                condition_cfs = [cond["cf"] for cond in rule_conditions if cond["matched"]]
+
+                if condition_cfs:
+                    min_condition_cf = min(condition_cfs)
+                    diagnosis_cf = min_condition_cf * rule_cf
+
+                    if diagnosis_name not in possible_diagnoses or diagnosis_cf > possible_diagnoses[diagnosis_name][
+                        "cf"]:
+                        possible_diagnoses[diagnosis_name] = {
+                            "name": diagnosis_name,
+                            "cf": diagnosis_cf,
+                            "rule_cf": rule_cf,
+                            "conditions": [f"{cond['fact']}" + (f" {cond['operator']}" if cond['operator'] else "")
+                                           for cond in rule_conditions],
+                            "matched_conditions": [cond["fact"] for cond in rule_conditions if cond["matched"]],
+                            "min_condition_cf": min_condition_cf
+                        }
+
+        # 3. Формируем результаты
+        for diagnosis_data in possible_diagnoses.values():
+            confidence = self._get_confidence_level(diagnosis_data["cf"])
+            result["diagnoses"].append({
+                **diagnosis_data,
+                "confidence": confidence
+            })
+
+        # Сортируем по уверенности (CF)
+        result["diagnoses"].sort(key=lambda x: x["cf"], reverse=True)
+
+        # 4. Если диагнозов нет, собираем информацию
+        if not result["diagnoses"]:
+            # Ищем правила, которые почти сработали
+            almost_rules = []
+            for rule in self.rules:
+                matched_count = 0
+                total_conditions = len(rule["if"])
+
+                for condition in rule["if"]:
+                    fact = condition["fact"]
+                    operator = condition.get("operator", "").upper()
+
+                    for symptom_info in matched_symptoms:
+                        if symptom_info["matched_fact"] == fact:
+                            if operator == "NOT":
+                                # Для NOT нужно отсутствие симптома
+                                if symptom_info["cf"] < 0.5:  # Если уверенность в наличии < 0.5, считаем отсутствует
+                                    matched_count += 1
+                            else:
+                                matched_count += 1
+                            break
+
+                if matched_count > 0 and matched_count < total_conditions:
+                    almost_rules.append({
+                        "diagnosis": rule["then"],
+                        "matched": matched_count,
+                        "total": total_conditions,
+                        "missing": [cond["fact"] for cond in rule["if"] if cond["fact"] not in
+                                    [s["matched_fact"] for s in matched_symptoms if s["matched_fact"]]]
+                    })
+
+            if almost_rules:
+                result["no_diagnosis_info"] = {
+                    "message": "Не удалось поставить точный диагноз",
+                    "almost_rules": almost_rules
+                }
 
         return result
+
+    def _get_confidence_level(self, cf: float) -> str:
+        """Определить уровень уверенности на основе CF"""
+        if cf >= 0.8:
+            return "очень высокая"
+        elif cf >= 0.6:
+            return "высокая"
+        elif cf >= 0.4:
+            return "средняя"
+        elif cf >= 0.2:
+            return "низкая"
+        else:
+            return "очень низкая"
 
     def load_from_dict(self, data: dict):
         """Загрузить состояние системы из словаря"""

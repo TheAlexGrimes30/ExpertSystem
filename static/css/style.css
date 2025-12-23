@@ -39,7 +39,7 @@ header h1 {
 
 .main-content {
     display: grid;
-    grid-template-columns: 300px 1fr 350px;
+    grid-template-columns: 300px 1fr;
     gap: 20px;
     padding: 25px;
     min-height: 700px;
@@ -141,22 +141,28 @@ header h1 {
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 10px;
+    padding: 15px;
     background: #f8f9fa;
-    border-radius: 6px;
-    font-size: 0.9em;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
 .stat i {
-    font-size: 1.2em;
+    font-size: 1.5em;
     color: #667eea;
+    margin-bottom: 10px;
+}
+
+.stat-label {
+    font-size: 0.9em;
+    color: #6c757d;
     margin-bottom: 5px;
 }
 
-.stat span:last-child {
+.stat-value {
+    font-size: 1.5em;
     font-weight: bold;
     color: #2c3e50;
-    font-size: 1.1em;
 }
 
 .facts-rules-panel {
@@ -385,72 +391,6 @@ header h1 {
     font-style: italic;
 }
 
-.inference-panel {
-    background: linear-gradient(135deg, #f0f5ff 0%, #e6f7ff 100%);
-}
-
-.btn-infer {
-    width: 100%;
-    padding: 16px;
-    margin: 20px 0;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-size: 1.1em;
-    cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    font-weight: 500;
-}
-
-.btn-infer:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
-}
-
-.results {
-    margin-top: 25px;
-}
-
-.results h3 {
-    color: #495057;
-    margin-bottom: 15px;
-    font-size: 1.2em;
-}
-
-.inference-result {
-    padding: 15px;
-    margin: 10px 0;
-    background: #d4edda;
-    border-radius: 8px;
-    border-left: 4px solid #28a745;
-    border: 1px solid #c3e6cb;
-}
-
-.inference-fact {
-    font-weight: 500;
-    color: #155724;
-    margin-bottom: 5px;
-}
-
-.inference-cf {
-    color: #0c5460;
-    font-size: 0.9em;
-}
-
-.inference-empty {
-    text-align: center;
-    padding: 40px;
-    color: #6c757d;
-    font-style: italic;
-    background: #f8f9fa;
-    border-radius: 8px;
-}
-
 .btn {
     padding: 10px 16px;
     border: none;
@@ -516,13 +456,13 @@ footer p {
     color: #495057;
 }
 
-/* Стили для вкладки запроса */
+/* Стили для вкладки диагностики */
 .query-section {
     margin-top: 20px;
 }
 
 .query-section .input-group {
-    grid-template-columns: 1fr 120px;
+    grid-template-columns: 1fr 150px;
     margin-bottom: 20px;
 }
 
@@ -612,138 +552,368 @@ footer p {
     margin-right: 10px;
 }
 
-.query-result-rules {
+.subtitle {
+    font-size: 1.1em;
+    opacity: 0.9;
+    margin-top: 5px;
+    font-weight: normal;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 10px;
     margin-top: 15px;
-    padding-top: 15px;
-    border-top: 1px dashed #dee2e6;
 }
 
-.query-result-rules h5 {
-    font-size: 1em;
-    color: #495057;
-    margin-bottom: 10px;
-    font-weight: 500;
+.footer-content {
+    max-width: 800px;
+    margin: 0 auto;
 }
 
-.rule-path {
-    padding: 12px;
-    margin-bottom: 10px;
+/* Стили для отображения диагнозов */
+.diagnosis-header {
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.symptoms-input {
     background: #f8f9fa;
-    border-radius: 6px;
-    border-left: 3px solid #6c757d;
+    padding: 12px;
+    border-radius: 8px;
+    margin-top: 10px;
 }
 
-.rule-path .rule-text {
+.symptoms-input p {
+    margin: 0;
     font-size: 0.95em;
-    margin-bottom: 8px;
 }
 
-.rule-path .rule-calc {
-    font-size: 0.85em;
-    color: #6c757d;
-    background: #e9ecef;
-    padding: 6px 10px;
-    border-radius: 4px;
-    font-family: 'Courier New', monospace;
+/* Анализ симптомов */
+.symptoms-analysis {
+    margin-bottom: 20px;
 }
 
-.required-facts {
-    margin-top: 15px;
-    padding-top: 15px;
-    border-top: 1px dashed #dee2e6;
-}
-
-.required-facts h5 {
+.symptoms-analysis h5 {
     font-size: 1em;
     color: #495057;
     margin-bottom: 10px;
-    font-weight: 500;
-}
-
-.fact-status {
     display: flex;
     align-items: center;
     gap: 8px;
+}
+
+.symptoms-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.symptom-item {
+    display: flex;
+    align-items: center;
     padding: 8px 12px;
-    margin-bottom: 5px;
+    border-radius: 6px;
     background: white;
-    border-radius: 4px;
-    border: 1px solid #dee2e6;
+    border-left: 3px solid #dee2e6;
 }
 
-.fact-status.found {
-    border-color: #28a745;
-    background: #d4edda;
+.symptom-item.matched {
+    border-left-color: #28a745;
+    background: #f8fff9;
 }
 
-.fact-status.missing {
-    border-color: #dc3545;
-    background: #f8d7da;
+.symptom-item.not-found {
+    border-left-color: #dc3545;
+    background: #fff5f5;
 }
 
-.fact-status i {
+.symptom-item i {
+    margin-right: 10px;
     font-size: 0.9em;
 }
 
-.fact-status.found i {
+.symptom-item.matched i {
     color: #28a745;
 }
 
-.fact-status.missing i {
+.symptom-item.not-found i {
     color: #dc3545;
 }
 
-.fact-name {
-    flex-grow: 1;
-    font-weight: 500;
+.symptom-name {
+    flex: 1;
+    font-size: 0.95em;
 }
 
-.fact-cf-small {
+.symptom-cf {
     font-size: 0.85em;
     color: #6c757d;
-}
-
-.no-rules-found {
-    padding: 15px;
-    text-align: center;
-    color: #6c757d;
-    font-style: italic;
-    background: #f8f9fa;
-    border-radius: 6px;
-}
-
-.query-examples {
-    margin-top: 20px;
-    padding: 15px;
     background: #e9ecef;
-    border-radius: 8px;
-    border-left: 4px solid #667eea;
+    padding: 2px 8px;
+    border-radius: 10px;
 }
 
-.query-examples h5 {
-    font-size: 1em;
+/* Карточки диагнозов */
+.diagnoses-section {
+    margin-top: 20px;
+}
+
+.diagnoses-section h5 {
+    font-size: 1.1em;
     color: #495057;
-    margin-bottom: 10px;
-    font-weight: 500;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
-.query-examples ul {
-    padding-left: 20px;
+.diagnosis-card {
+    display: flex;
+    background: white;
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 15px;
+    border-left: 5px solid #667eea;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+    transition: transform 0.2s;
+}
+
+.diagnosis-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+}
+
+.diagnosis-card.very-high {
+    border-left-color: #28a745;
+    background: linear-gradient(to right, #f8fff9, white);
+}
+
+.diagnosis-card.high {
+    border-left-color: #17a2b8;
+    background: linear-gradient(to right, #f0f9ff, white);
+}
+
+.diagnosis-card.medium {
+    border-left-color: #ffc107;
+    background: linear-gradient(to right, #fffbf0, white);
+}
+
+.diagnosis-card.low {
+    border-left-color: #fd7e14;
+    background: linear-gradient(to right, #fff5f0, white);
+}
+
+.diagnosis-card.very-low {
+    border-left-color: #dc3545;
+    background: linear-gradient(to right, #fff5f5, white);
+}
+
+.diagnosis-rank {
+    font-size: 1.8em;
+    font-weight: bold;
+    color: #6c757d;
+    min-width: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Courier New', monospace;
+}
+
+.diagnosis-content {
+    flex: 1;
+}
+
+.diagnosis-main {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.diagnosis-name {
+    font-size: 1.3em;
+    margin: 0;
+    color: #2c3e50;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.diagnosis-name i {
+    color: #667eea;
+}
+
+.diagnosis-confidence {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.confidence-badge {
+    padding: 6px 15px;
+    border-radius: 20px;
+    font-size: 0.9em;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.confidence-badge.very-high {
+    background: #d4edda;
+    color: #155724;
+}
+
+.confidence-badge.high {
+    background: #d1ecf1;
+    color: #0c5460;
+}
+
+.confidence-badge.medium {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.confidence-badge.low {
+    background: #ffe5d0;
+    color: #853904;
+}
+
+.confidence-badge.very-low {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.cf-value {
+    background: #667eea;
+    color: white;
+    padding: 6px 15px;
+    border-radius: 15px;
+    font-size: 0.95em;
+    font-weight: 500;
+    font-family: 'Courier New', monospace;
+}
+
+.diagnosis-details {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 15px;
+}
+
+.detail-row {
+    margin-bottom: 10px;
+    display: flex;
+    align-items: flex-start;
+}
+
+.detail-row:last-child {
     margin-bottom: 0;
 }
 
-.query-examples li {
-    margin-bottom: 5px;
-    font-size: 0.9em;
-    line-height: 1.4;
+.detail-row strong {
+    min-width: 150px;
+    color: #495057;
+    font-size: 0.95em;
 }
 
-.query-examples code {
+.conditions-list {
+    background: #e9ecef;
+    padding: 6px 12px;
+    border-radius: 6px;
+    margin-left: 10px;
+    font-family: monospace;
+    font-size: 0.95em;
+}
+
+.cf-calculation {
     background: #d1d9e6;
-    padding: 2px 6px;
-    border-radius: 4px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    margin-left: 10px;
     font-family: 'Courier New', monospace;
     font-size: 0.9em;
+    color: #2c3e50;
+}
+
+.matched-symptoms {
+    background: #d4edda;
+    padding: 6px 12px;
+    border-radius: 6px;
+    margin-left: 10px;
+    font-size: 0.95em;
+}
+
+/* Когда нет диагноза */
+.no-diagnosis {
+    margin-top: 20px;
+}
+
+.almost-diagnoses {
+    margin-top: 15px;
+    padding: 15px;
+    background: #fff3cd;
+    border-radius: 8px;
+    border: 1px solid #ffeaa7;
+}
+
+.almost-rule {
+    margin-bottom: 15px;
+    padding: 12px;
+    background: white;
+    border-radius: 6px;
+    border-left: 3px solid #ffc107;
+}
+
+.almost-rule:last-child {
+    margin-bottom: 0;
+}
+
+.almost-diagnosis {
+    font-weight: 500;
+    color: #2c3e50;
+    margin-bottom: 8px;
+    font-size: 1.1em;
+}
+
+.almost-progress {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 8px;
+}
+
+.progress-bar {
+    flex: 1;
+    height: 10px;
+    background: #e9ecef;
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #ffc107, #ff9800);
+    transition: width 0.3s;
+}
+
+.progress-text {
+    font-size: 0.9em;
+    color: #6c757d;
+    min-width: 100px;
+}
+
+.missing-conditions {
+    padding: 8px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    font-size: 0.9em;
+    color: #dc3545;
+    border: 1px solid #f5c6cb;
 }
 
 @media (max-width: 768px) {
