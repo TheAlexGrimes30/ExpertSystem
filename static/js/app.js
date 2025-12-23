@@ -132,16 +132,13 @@ function parseConditions(rawConditions) {
         let fact = rawCondition;
         let operator = '';
 
-        // Разделяем на слова
         const words = rawCondition.split(' ');
         const lastWord = words[words.length - 1];
 
-        // Проверяем, является ли последнее слово оператором
         if (operatorMap[lastWord]) {
             operator = operatorMap[lastWord];
             fact = words.slice(0, -1).join(' ').trim();
         } else if (i < rawConditions.length - 1) {
-            // По умолчанию для всех кроме последнего - AND
             operator = 'AND';
         }
 
@@ -159,7 +156,6 @@ function addOrEditRule() {
     const conclusionInput = document.getElementById('conclusionInput');
     const ruleCFInput = document.getElementById('ruleCF');
 
-    // Парсим условия
     const rawConditions = conditionsInput.value.split(',').map(c => c.trim()).filter(c => c);
 
     if (rawConditions.length === 0) {
@@ -167,14 +163,11 @@ function addOrEditRule() {
         return;
     }
 
-    // Обработка простого случая: если только одно условие без операторов
     if (rawConditions.length === 1) {
         const singleCondition = rawConditions[0];
-        // Проверяем, есть ли оператор в условии
         const hasOperator = ['И', 'ИЛИ', 'НЕТ'].some(op => singleCondition.endsWith(' ' + op));
 
         if (!hasOperator) {
-            // Простое условие без оператора
             const conditions = [{
                 fact: singleCondition,
                 operator: ''
@@ -221,7 +214,6 @@ function addOrEditRule() {
         }
     }
 
-    // Сложные условия с операторами
     try {
         const conditions = parseConditions(rawConditions);
         const conclusion = conclusionInput.value.trim();
@@ -314,7 +306,6 @@ function selectRule(index, element) {
 
     const rule = currentRules[index];
 
-    // Восстанавливаем условия в читаемом формате
     const conditionsText = formatConditionsForInput(rule.if);
     document.getElementById('conditionsInput').value = conditionsText;
     document.getElementById('conclusionInput').value = rule.then;
@@ -506,7 +497,6 @@ function displayRules() {
         ruleItem.className = 'rule-item';
         ruleItem.onclick = () => selectRule(index, ruleItem);
 
-        // Определяем основной оператор для отображения
         const operatorCounts = { AND: 0, OR: 0, NOT: 0 };
         rule.if.forEach(cond => {
             if (cond.operator) operatorCounts[cond.operator]++;
