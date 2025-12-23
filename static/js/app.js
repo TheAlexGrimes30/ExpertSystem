@@ -1,3 +1,4 @@
+// static/js/frontend.js
 let currentFacts = {};
 let currentRules = [];
 let selectedFact = null;
@@ -20,11 +21,14 @@ function showTab(tabName) {
         btn.classList.remove('active');
     });
 
-    document.getElementById(tabName + 'Tab').classList.add('active');
-    document.querySelectorAll('.tab-btn').forEach((btn, index) => {
-        if ((tabName === 'facts' && btn.textContent.includes('Факты')) ||
-            (tabName === 'rules' && btn.textContent.includes('Правила')) ||
-            (tabName === 'query' && btn.textContent.includes('Анализ'))) {
+    const tabId = tabName + 'Tab';
+    const tabElement = document.getElementById(tabId);
+    if (tabElement) {
+        tabElement.classList.add('active');
+    }
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        if (btn.textContent.includes(tabName.charAt(0).toUpperCase() + tabName.slice(1))) {
             btn.classList.add('active');
         }
     });
@@ -58,6 +62,8 @@ function addOrEditFact() {
             displayFacts();
             clearFactInputs();
             updateCounters();
+        } else {
+            alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
         }
     })
     .catch(error => {
@@ -114,60 +120,51 @@ function selectFact(fact, element) {
 }
 
 function addOrEditRule() {
-    const conditionsInput = document.getElementById('conditionsInput');
-    const conclusionInput = document.getElementById('conclusionInput');
-    const ruleCFInput = document.getElementById('ruleCF');
+    const conditions = document.getElementById('conditionsInput').value.trim();
+    const conclusion = document.getElementById('conclusionInput').value.trim();
+    const cf = parseFloat(document.getElementById('ruleCF').value);
 
-    const conditionsText = conditionsInput.value.trim();
-
-    if (!conditionsText) {
+    if (!conditions) {
         alert('Пожалуйста, введите условия');
         return;
     }
 
-    try {
-        const conditions = conditionsText;
-        const conclusion = conclusionInput.value.trim();
-        const cf = parseFloat(ruleCFInput.value);
-
-        if (!conclusion) {
-            alert('Пожалуйста, введите заключение');
-            return;
-        }
-
-        if (isNaN(cf) || cf < 0 || cf > 1) {
-            alert('Коэффициент уверенности должен быть числом от 0 до 1');
-            return;
-        }
-
-        const ruleData = {
-            conditions: conditions,
-            conclusion: conclusion,
-            cf: cf
-        };
-
-        fetch('/api/rule', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(ruleData)
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                currentRules = data.rules;
-                displayRules();
-                clearRuleInputs();
-                updateCounters();
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Ошибка при сохранении правила');
-        });
-    } catch (error) {
-        console.error('Error:', error);
-        alert('Ошибка при сохранении правила: ' + error.message);
+    if (!conclusion) {
+        alert('Пожалуйста, введите заключение');
+        return;
     }
+
+    if (isNaN(cf) || cf < 0 || cf > 1) {
+        alert('Коэффициент уверенности должен быть числом от 0 до 1');
+        return;
+    }
+
+    const ruleData = {
+        conditions: conditions,
+        conclusion: conclusion,
+        cf: cf
+    };
+
+    fetch('/api/rule', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(ruleData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            currentRules = data.rules;
+            displayRules();
+            clearRuleInputs();
+            updateCounters();
+        } else {
+            alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Ошибка при сохранении правила');
+    });
 }
 
 function deleteSelectedRule() {
@@ -336,7 +333,7 @@ function displayQueryResults(query, result) {
                         <strong>На основании:</strong> ${conclusion.conditions.join(' ')}
                     </div>
                     <div style="font-family: monospace; background: #f8f9fa; padding: 8px; border-radius: 4px;">
-                        min(${conclusion.min_condition_cf.toFixed(2)}) × ${conclusion.rule_cf.toFixed(2)} = ${conclusion.cf.toFixed(4)}
+                        ${conclusion.calculation || `${conclusion.min_condition_cf.toFixed(2)} × ${conclusion.rule_cf.toFixed(2)} = ${conclusion.cf.toFixed(4)}`}
                     </div>
                 </div>
             `;

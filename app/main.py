@@ -45,6 +45,12 @@ class FactData(BaseModel):
     cf: float
 
 
+class RuleData(BaseModel):
+    conditions: str  # Строка условий для парсинга
+    conclusion: str
+    cf: float = 0.5
+
+
 class QueryData(BaseModel):
     query: str
 
@@ -172,26 +178,16 @@ async def delete_fact(fact: str):
 
 
 @app.post("/api/rule")
-async def add_rule(rule_data: dict):
+async def add_rule(rule_data: RuleData):
     """Добавить новое правило"""
     try:
-        # Получаем данные - теперь conditions может быть строкой
-        conditions_input = rule_data.get("conditions", "")
-        conclusion = rule_data.get("conclusion", "")
-        cf = float(rule_data.get("cf", 0.5))
-
-        if not conditions_input:
+        if not rule_data.conditions.strip():
             raise HTTPException(status_code=400, detail="Условия не могут быть пустыми")
-        if not conclusion:
+
+        if not rule_data.conclusion.strip():
             raise HTTPException(status_code=400, detail="Заключение не может быть пустым")
 
-        # Если conditions - строка, парсим ее
-        if isinstance(conditions_input, str):
-            # Парсим строку условий
-            expert_system.add_rule(conditions_input, conclusion, cf)
-        else:
-            # Старый формат для обратной совместимости
-            expert_system.add_rule(conditions_input, conclusion, cf)
+        expert_system.add_rule(rule_data.conditions, rule_data.conclusion, rule_data.cf)
 
         return JSONResponse(content={
             "success": True,
@@ -278,6 +274,21 @@ async def get_current_state():
     })
 
 
+# Эндпоинт для очистки всей базы
+@app.post("/api/clear-all")
+async def clear_all():
+    """Очистить все факты и правила"""
+    try:
+        expert_system.facts = {}
+        expert_system.rules = []
+        return JSONResponse(content={
+            "success": True,
+            "message": "Все данные очищены"
+        })
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
 
@@ -285,6 +296,8 @@ if __name__ == "__main__":
     print("УНИВЕРСАЛЬНАЯ ЭКСПЕРТНАЯ СИСТЕМА")
     print("=" * 60)
     print("Система логического вывода на основе метода Шортлиффа")
+    print("=" * 60)
+    print("Исправленная версия с правильной логикой AND/OR")
     print("=" * 60)
     print(f"Сервер запущен: http://localhost:{port}")
     print("Для остановки нажмите Ctrl+C")

@@ -1,14 +1,14 @@
 import json
 import os
 from pathlib import Path
-from typing import List, Dict
+from typing import List, Dict, Tuple, Optional
 import re
 
 
 class ExpertSystem:
     def __init__(self):
-        self.facts = {}
-        self.rules = []
+        self.facts: Dict[str, float] = {}
+        self.rules: List[Dict] = []
 
     def add_fact(self, fact: str, cf: float):
         """Добавить факт с коэффициентом уверенности"""
@@ -22,76 +22,94 @@ class ExpertSystem:
             del self.facts[fact]
 
     def parse_conditions_string(self, conditions_str: str) -> List[Dict]:
-        """Парсинг строки условий в новом формате"""
+        """Парсинг строки условий в структурированный формат"""
         conditions_str = conditions_str.strip()
         if not conditions_str:
             return []
 
-        result = []
+        # Нормализуем строку
+        conditions_str = conditions_str.replace('(', ' ( ').replace(')', ' ) ')
+        conditions_str = conditions_str.replace(',', ' , ')
 
-        # Обрабатываем скобки и операторы
+        # Разбиваем на токены
+        tokens = [t.strip() for t in conditions_str.split() if t.strip()]
+
+        return self._parse_tokens(tokens)
+
+    def _parse_tokens(self, tokens: List[str]) -> List[Dict]:
+        """Рекурсивный парсинг токенов"""
+        result = []
         i = 0
-        while i < len(conditions_str):
-            # Пропускаем пробелы
-            if conditions_str[i].isspace():
+
+        while i < len(tokens):
+            token = tokens[i]
+
+            # Обработка оператора NOT
+            if token.upper() == 'НЕТ':
+                if i + 1 < len(tokens):
+                    next_token = tokens[i + 1]
+                    if next_token not in ['И', 'ИЛИ', '(', ')', ',']:
+                        result.append({
+                            "fact": next_token,
+                            "operator": "NOT",
+                            "is_group": False
+                        })
+                        i += 2
+                    else:
+                        result.append({
+                            "fact": token,
+                            "operator": "",
+                            "is_group": False
+                        })
+                        i += 1
+                else:
+                    result.append({
+                        "fact": token,
+                        "operator": "",
+                        "is_group": False
+                    })
+                    i += 1
+                continue
+
+            # Обработка оператора OR
+            if token.upper() == 'ИЛИ':
+                if result:
+                    result[-1]["operator"] = "OR"
                 i += 1
                 continue
 
-            # Обработка оператора НЕТ
-            if conditions_str[i:].lower().startswith('нет '):
-                i += 4  # Пропускаем "нет " (4 символа)
-                # Получаем факт после НЕТ
-                fact_start = i
-                while i < len(conditions_str) and not conditions_str[i].isspace() and conditions_str[i] != ',':
-                    i += 1
-                fact = conditions_str[fact_start:i].strip()
-
-                result.append({
-                    "fact": fact,
-                    "operator": "NOT",
-                    "is_group": False
-                })
-                continue
-
-            # Обработка оператора ИЛИ
-            if conditions_str[i:].lower().startswith('или '):
-                if result:
-                    result[-1]["operator"] = "OR"
-                i += 3  # Пропускаем "или" (3 символа)
-                continue
-
-            # Обработка оператора И (только если отдельное слово)
-            if conditions_str[i:].lower().startswith('и ') and i + 1 < len(conditions_str) and conditions_str[
-                i + 1].isspace():
+            # Обработка оператора AND
+            if token.upper() == 'И':
                 if result:
                     result[-1]["operator"] = "AND"
-                i += 2  # Пропускаем "и " (2 символа)
+                i += 1
                 continue
 
             # Обработка скобок
-            if conditions_str[i] == '(':
-                # Находим закрывающую скобку
+            if token == '(':
                 depth = 1
                 j = i + 1
-                while j < len(conditions_str) and depth > 0:
-                    if conditions_str[j] == '(':
+                group_tokens = []
+
+                while j < len(tokens) and depth > 0:
+                    if tokens[j] == '(':
                         depth += 1
-                    elif conditions_str[j] == ')':
+                    elif tokens[j] == ')':
                         depth -= 1
+
+                    if depth > 0:
+                        group_tokens.append(tokens[j])
                     j += 1
 
-                group_content = conditions_str[i + 1:j - 1].strip()
+                # Парсим содержимое группы
+                if group_tokens:
+                    group_conditions = self._parse_tokens(group_tokens)
 
-                # Рекурсивно парсим содержимое группы
-                if group_content:
-                    # Если в группе несколько условий через запятую
-                    if ',' in group_content:
-                        group_items = [item.strip() for item in group_content.split(',')]
+                    if len(group_conditions) > 1:
                         group_facts = []
-
-                        for item in group_items:
-                            if item and item.lower() not in ['и', 'или', 'нет']:
-                                group_facts.append(item)
+                        for cond in group_conditions:
+                            if not cond.get("is_group", False) and cond["fact"]:
+                                group_facts.append(cond["fact"])
 
                         if group_facts:
                             result.append({
@@ -99,54 +117,41 @@ class ExpertSystem:
                                 "operator": "",
                                 "is_group": True
                             })
+                        else:
+                            for cond in group_conditions:
+                                result.append(cond)
                     else:
-                        # Одиночный факт в скобках
-                        result.append({
-                            "fact": group_content,
-                            "operator": "",
-                            "is_group": True
-                        })
+                        for cond in group_conditions:
+                            cond["is_group"] = True
+                            result.append(cond)
 
                 i = j
                 continue
 
+            # Обработка запятой (неявный AND)
+            if token == ',':
+                if result and result[-1].get("operator", "") == "":
+                    result[-1]["operator"] = "AND"
+                i += 1
+                continue
+
             # Обычный факт
-            fact_start = i
+            if token not in [')']:
+                if i > 0 and tokens[i - 1] == ',' and result:
+                    result[-1]["operator"] = "AND"
 
-            # Ищем конец факта
-            while i < len(conditions_str):
-                # Проверяем на начало оператора
-                lookahead = conditions_str[i:].lower()
-                if lookahead.startswith((' и ', ' или ', ' нет ')):
-                    break
-                if conditions_str[i] in ',()':
-                    break
-                i += 1
-
-            fact = conditions_str[fact_start:i].strip()
-
-            # Пропускаем запятые, если есть
-            if i < len(conditions_str) and conditions_str[i] == ',':
-                i += 1
-
-            if fact and fact.lower() not in ['и', 'или', 'нет']:
                 result.append({
-                    "fact": fact,
-                    "operator": "",  # Оператор будет добавлен позже
+                    "fact": token,
+                    "operator": "",
                     "is_group": False
                 })
-                continue
 
             i += 1
 
-        # Обрабатываем запятые как операторы И
-        for i in range(len(result)):
-            # Если после элемента была запятая, значит это И
-            if i > 0 and result[i].get("operator", "") == "":
-                # Проверяем, был ли предыдущий элемент без оператора
-                # (значит между ними была запятая или просто пробел)
-                if i - 1 >= 0 and result[i - 1].get("operator", "") == "":
-                    result[i - 1]["operator"] = "AND"
+        # Устанавливаем AND по умолчанию
+        for i in range(len(result) - 1):
+            if result[i].get("operator", "") == "":
+                result[i]["operator"] = "AND"
 
         return result
 
@@ -155,26 +160,20 @@ class ExpertSystem:
         if not 0 <= cf <= 1:
             raise ValueError("Коэффициент уверенности должен быть от 0 до 1")
 
-        # Если conditions - строка, парсим ее
         if isinstance(conditions, str):
             conditions = self.parse_conditions_string(conditions)
-
-        # Обрабатываем структурированные условия
-        structured_conditions = []
-
-        for condition in conditions:
-            if isinstance(condition, dict):
-                structured_conditions.append(condition)
-            elif isinstance(condition, str):
-                parsed = self.parse_conditions_string(condition)
-                structured_conditions.extend(parsed)
-            else:
-                # Преобразуем к строке и парсим
-                parsed = self.parse_conditions_string(str(condition))
-                structured_conditions.extend(parsed)
+        elif isinstance(conditions, list):
+            parsed_conditions = []
+            for condition in conditions:
+                if isinstance(condition, str):
+                    parsed = self.parse_conditions_string(condition)
+                    parsed_conditions.extend(parsed)
+                elif isinstance(condition, dict):
+                    parsed_conditions.append(condition)
+            conditions = parsed_conditions
 
         self.rules.append({
-            "if": structured_conditions,
+            "if": conditions,
             "then": conclusion,
             "cf": cf
         })
@@ -184,81 +183,59 @@ class ExpertSystem:
         if 0 <= index < len(self.rules):
             self.rules.pop(index)
 
-    def _evaluate_condition(self, condition: dict) -> float:
+    def _get_fact_cf(self, fact_name: str, operator: str = "") -> float:
+        """Получить CF для факта с учетом оператора NOT"""
+        cf = self.facts.get(fact_name, 0.0)
+        if operator == "NOT":
+            return 1.0 - cf
+        return cf
+
+    def _evaluate_single_condition(self, condition: Dict) -> float:
         """Оценить одно условие"""
         fact = condition.get("fact", "")
         operator = condition.get("operator", "").upper()
-        fact_cf = self.facts.get(fact, 0)
+        is_group = condition.get("is_group", False)
 
-        if operator == "NOT":
-            return 1.0 - fact_cf
-        return fact_cf
+        if is_group and isinstance(fact, list):
+            cfs = [self._get_fact_cf(f, operator) for f in fact]
+            return min(cfs) if cfs else 0.0
+        else:
+            return self._get_fact_cf(fact, operator)
 
-    def _evaluate_group_conditions(self, group_conditions: list) -> float:
-        """Оценить группу условий"""
-        if not group_conditions:
-            return 0.0
-
-        result = None
-        current_operator = "AND"
-
-        for condition in group_conditions:
-            condition_cf = self._evaluate_condition(condition)
-            operator = condition.get("operator", "").upper()
-
-            if result is None:
-                result = condition_cf
-            elif operator == "AND" or current_operator == "AND":
-                result = min(result, condition_cf)
-                current_operator = operator
-            elif operator == "OR":
-                result = max(result, condition_cf)
-                current_operator = operator
-            else:
-                result = min(result, condition_cf)
-
-        return result if result is not None else 0.0
-
-    def _evaluate_rule_conditions(self, conditions: list) -> float:
-        """Оценить все условия правила"""
+    def _evaluate_conditions(self, conditions: List[Dict]) -> float:
+        """Оценить все условия правила с правильной логикой AND/OR"""
         if not conditions:
             return 0.0
 
+        if len(conditions) == 1:
+            return self._evaluate_single_condition(conditions[0])
+
         result = None
         current_operator = "AND"
 
-        i = 0
-        while i < len(conditions):
-            condition = conditions[i]
+        for i, condition in enumerate(conditions):
+            condition_cf = self._evaluate_single_condition(condition)
+            operator = condition.get("operator", "").upper()
 
-            if condition.get("is_group", False):
-                group_conditions = []
-                while i < len(conditions) and conditions[i].get("is_group", False):
-                    group_conditions.append(conditions[i])
-                    i += 1
-
-                condition_cf = self._evaluate_group_conditions(group_conditions)
-                group_operator = group_conditions[-1]["operator"] if group_conditions else ""
-            else:
-                condition_cf = self._evaluate_condition(condition)
-                group_operator = condition.get("operator", "")
-                i += 1
+            if i == len(conditions) - 1:
+                operator = ""
 
             if result is None:
                 result = condition_cf
-                current_operator = group_operator
-            elif current_operator == "AND" or group_operator == "AND":
-                result = min(result, condition_cf)
-                current_operator = group_operator
-            elif group_operator == "OR":
-                result = max(result, condition_cf)
-                current_operator = group_operator
+                current_operator = operator if operator else "AND"
             else:
-                result = min(result, condition_cf)
+                if current_operator == "AND":
+                    result = min(result, condition_cf)
+                elif current_operator == "OR":
+                    result = max(result, condition_cf)
+                else:
+                    result = min(result, condition_cf)
+
+                current_operator = operator if operator else "AND"
 
         return result if result is not None else 0.0
 
-    def infer(self):
+    def infer(self) -> Dict[str, float]:
         """Выполнить логический вывод по методу Шортлиффа"""
         new_inferences = True
         inferred = {}
@@ -272,7 +249,7 @@ class ExpertSystem:
                 rule_cf = rule["cf"]
 
                 try:
-                    condition_cf = self._evaluate_rule_conditions(conditions)
+                    condition_cf = self._evaluate_conditions(conditions)
 
                     if condition_cf > 0:
                         result_cf = condition_cf * rule_cf
@@ -286,7 +263,7 @@ class ExpertSystem:
 
         return inferred
 
-    def query(self, symptoms_input: str):
+    def query(self, symptoms_input: str) -> Dict:
         """Выполнить анализ на основе введенных данных"""
         # Парсим входные данные
         parsed_conditions = self.parse_conditions_string(symptoms_input)
@@ -297,228 +274,337 @@ class ExpertSystem:
                 "error": "Введите корректные данные"
             }
 
-        # Извлекаем факты из парсинга
-        input_facts = []
-        for condition in parsed_conditions:
-            if condition.get("is_group", False):
-                if isinstance(condition["fact"], list):
-                    input_facts.extend(condition["fact"])
-                else:
-                    input_facts.append(condition["fact"])
-            else:
-                input_facts.append(condition["fact"])
-
         result = {
             "success": True,
             "query": symptoms_input,
             "parsed_conditions": parsed_conditions,
-            "input_facts": input_facts,
             "conclusions": [],
             "matched_items": [],
-            "missing_items": {},
             "partial_matches": None
         }
 
-        # Сопоставляем факты
+        # Сопоставляем факты с базой знаний
         matched_items = []
-        for symptom in input_facts:
-            found = False
-            for fact_name in self.facts.keys():
-                fact_lower = fact_name.lower()
-                symptom_lower = symptom.lower()
+        all_fact_names = list(self.facts.keys())
 
-                if (symptom_lower in fact_lower or
-                        fact_lower in symptom_lower or
-                        any(word in symptom_lower for word in fact_lower.split()) or
-                        any(word in fact_lower for word in symptom_lower.split())):
-                    matched_items.append({
-                        "input": symptom,
-                        "matched_fact": fact_name,
-                        "cf": self.facts[fact_name]
-                    })
-                    found = True
-                    break
+        for condition in parsed_conditions:
+            fact_name = condition.get("fact", "")
+            operator = condition.get("operator", "").upper()
 
-            if not found:
-                matched_items.append({
-                    "input": symptom,
-                    "matched_fact": None,
-                    "cf": 0.0
-                })
+            if isinstance(fact_name, list):
+                for fact in fact_name:
+                    self._match_fact(fact, operator, matched_items, all_fact_names)
+            else:
+                self._match_fact(fact_name, operator, matched_items, all_fact_names)
 
         result["matched_items"] = matched_items
 
+        # Ключевое исправление: проверяем правила с учетом структуры запроса
         possible_conclusions = {}
 
         for rule in self.rules:
-            conclusion_name = rule["then"]
-            rule_cf = rule["cf"]
+            # НОВАЯ ЛОГИКА: проверяем полное соответствие структуры
+            if self._check_rule_structure_match(rule, parsed_conditions, matched_items):
+                conclusion_name = rule["then"]
+                rule_cf = rule["cf"]
 
-            rule_conditions = []
-            condition_results = []
+                # Рассчитываем CF условий
+                condition_cf = self._calculate_rule_cf(rule, matched_items)
 
+                if condition_cf > 0:
+                    conclusion_cf = condition_cf * rule_cf
+
+                    if conclusion_name not in possible_conclusions or conclusion_cf > \
+                            possible_conclusions[conclusion_name]["cf"]:
+                        calculation_info = self._format_calculation(rule, matched_items, rule_cf, conclusion_cf)
+
+                        possible_conclusions[conclusion_name] = {
+                            "name": conclusion_name,
+                            "cf": conclusion_cf,
+                            "rule_cf": rule_cf,
+                            "conditions": self._format_conditions(rule["if"]),
+                            "calculation": calculation_info,
+                            "min_condition_cf": condition_cf,
+                            "confidence": self._get_confidence_level(conclusion_cf)
+                        }
+
+        # Добавляем выводы в результат
+        for conclusion_data in possible_conclusions.values():
+            result["conclusions"].append(conclusion_data)
+
+        result["conclusions"].sort(key=lambda x: x["cf"], reverse=True)
+
+        # Если нет точных выводов, ищем частичные совпадения
+        if not result["conclusions"]:
+            partial_rules = self._find_partial_matches(matched_items, parsed_conditions)
+            if partial_rules:
+                result["partial_matches"] = {
+                    "message": "Точных выводов не найдено, но есть близкие правила",
+                    "partial_rules": partial_rules
+                }
+
+        return result
+
+    def _check_rule_structure_match(self, rule: Dict, query_conditions: List[Dict], matched_items: List[Dict]) -> bool:
+        """Проверить полное соответствие структуры правила и запроса"""
+        rule_conditions = rule["if"]
+
+        # Если разное количество условий - не подходит
+        if len(rule_conditions) != len(query_conditions):
+            return False
+
+        # Проверяем каждое условие
+        for rule_cond, query_cond in zip(rule_conditions, query_conditions):
+            # Проверяем факты
+            rule_fact = rule_cond.get("fact", "")
+            query_fact = query_cond.get("fact", "")
+
+            if isinstance(rule_fact, list) and isinstance(query_fact, list):
+                if set(rule_fact) != set(query_fact):
+                    return False
+            elif isinstance(rule_fact, list) or isinstance(query_fact, list):
+                return False
+            else:
+                if rule_fact != query_fact:
+                    return False
+
+            # Проверяем операторы (ключевое исправление!)
+            rule_operator = rule_cond.get("operator", "").upper()
+            query_operator = query_cond.get("operator", "").upper()
+
+            # Пустой оператор и "AND" считаем эквивалентными
+            rule_op = "AND" if rule_operator in ["", "AND"] else rule_operator
+            query_op = "AND" if query_operator in ["", "AND"] else query_operator
+
+            if rule_op != query_op:
+                return False
+
+        # Дополнительно проверяем, что все факты из правила есть в matched_items
+        for condition in rule_conditions:
+            fact_name = condition.get("fact", "")
+            operator = condition.get("operator", "").upper()
+
+            if isinstance(fact_name, list):
+                for fact in fact_name:
+                    if not self._fact_in_matched(fact, operator, matched_items):
+                        return False
+            else:
+                if not self._fact_in_matched(fact_name, operator, matched_items):
+                    return False
+
+        return True
+
+    def _match_fact(self, fact_name: str, operator: str, matched_items: List[Dict], all_fact_names: List[str]) -> None:
+        """Сопоставить факт с базой знаний"""
+        matched = False
+
+        for stored_fact in all_fact_names:
+            if self._facts_match(fact_name, stored_fact):
+                cf = self.facts[stored_fact]
+                if operator == "NOT":
+                    cf = 1.0 - cf
+
+                matched_items.append({
+                    "input": fact_name,
+                    "matched_fact": stored_fact,
+                    "cf": cf,
+                    "operator": operator
+                })
+                matched = True
+                break
+
+        if not matched:
+            matched_items.append({
+                "input": fact_name,
+                "matched_fact": None,
+                "cf": 0.0,
+                "operator": operator
+            })
+
+    def _facts_match(self, input_fact: str, stored_fact: str) -> bool:
+        """Проверить, соответствует ли входной факт сохраненному факту"""
+        input_lower = input_fact.lower().replace('_', ' ')
+        stored_lower = stored_fact.lower().replace('_', ' ')
+
+        if input_lower == stored_lower:
+            return True
+
+        if input_lower in stored_lower or stored_lower in input_lower:
+            return True
+
+        input_words = set(input_lower.split())
+        stored_words = set(stored_lower.split())
+
+        if input_words.intersection(stored_words):
+            return True
+
+        return False
+
+    def _fact_in_matched(self, fact_name: str, operator: str, matched_items: List[Dict]) -> bool:
+        """Проверить, есть ли факт в сопоставленных элементах"""
+        for item in matched_items:
+            item_fact = item["matched_fact"]
+            if item_fact is None:
+                continue
+
+            item_fact_lower = item_fact.lower().replace('_', ' ')
+            fact_name_lower = fact_name.lower().replace('_', ' ')
+
+            if item_fact_lower == fact_name_lower:
+                if operator == "NOT":
+                    return item["cf"] > 0
+                else:
+                    return item["cf"] > 0
+        return False
+
+    def _calculate_rule_cf(self, rule: Dict, matched_items: List[Dict]) -> float:
+        """Рассчитать CF для правил на основе сопоставленных фактов"""
+        condition_cfs = []
+
+        for condition in rule["if"]:
+            fact_name = condition.get("fact", "")
+            operator = condition.get("operator", "").upper()
+            is_group = condition.get("is_group", False)
+
+            if is_group and isinstance(fact_name, list):
+                group_cfs = []
+                for fact in fact_name:
+                    cf = self._get_matched_cf(fact, operator, matched_items)
+                    if cf > 0:
+                        group_cfs.append(cf)
+                if group_cfs:
+                    condition_cfs.append(min(group_cfs))
+                else:
+                    condition_cfs.append(0.0)
+            else:
+                cf = self._get_matched_cf(fact_name, operator, matched_items)
+                condition_cfs.append(cf)
+
+        if not condition_cfs:
+            return 0.0
+
+        result = condition_cfs[0]
+
+        for i in range(1, len(condition_cfs)):
+            operator = rule["if"][i - 1].get("operator", "").upper()
+            next_cf = condition_cfs[i]
+
+            if operator == "AND":
+                result = min(result, next_cf)
+            elif operator == "OR":
+                result = max(result, next_cf)
+            else:
+                result = min(result, next_cf)
+
+        return result
+
+    def _get_matched_cf(self, fact_name: str, operator: str, matched_items: List[Dict]) -> float:
+        """Получить CF из сопоставленных элементов"""
+        for item in matched_items:
+            if item["matched_fact"] is None:
+                continue
+
+            item_fact_lower = item["matched_fact"].lower().replace('_', ' ')
+            fact_name_lower = fact_name.lower().replace('_', ' ')
+
+            if item_fact_lower == fact_name_lower:
+                cf = item["cf"]
+                return cf
+        return 0.0
+
+    def _format_conditions(self, conditions: List[Dict]) -> List[str]:
+        """Форматировать условия для отображения"""
+        formatted = []
+
+        for condition in conditions:
+            fact = condition.get("fact", "")
+            operator = condition.get("operator", "").upper()
+            is_group = condition.get("is_group", False)
+
+            if is_group and isinstance(fact, list):
+                text = f"({', '.join(fact)})"
+            else:
+                text = fact
+
+            if operator == "NOT":
+                text = f"НЕТ {text}"
+
+            formatted.append(text)
+
+            if operator in ["AND", "OR"]:
+                formatted.append(operator.lower())
+
+        return formatted
+
+    def _format_calculation(self, rule: Dict, matched_items: List[Dict], rule_cf: float, conclusion_cf: float) -> str:
+        """Форматировать строку расчета"""
+        parts = []
+
+        for i, condition in enumerate(rule["if"]):
+            fact = condition.get("fact", "")
+            operator = condition.get("operator", "").upper()
+            is_group = condition.get("is_group", False)
+
+            if is_group and isinstance(fact, list):
+                group_parts = []
+                for f in fact:
+                    cf = self._get_matched_cf(f, operator, matched_items)
+                    group_parts.append(f"{cf:.2f}")
+
+                if group_parts:
+                    parts.append(f"min({', '.join(group_parts)})")
+            else:
+                cf = self._get_matched_cf(fact, operator, matched_items)
+                parts.append(f"{cf:.2f}")
+
+            if operator in ["AND", "OR"] and i < len(rule["if"]) - 1:
+                parts.append(operator.lower())
+
+        if len(parts) == 1:
+            expression = parts[0]
+        else:
+            expression = " ".join(parts)
+
+        return f"{expression} × {rule_cf:.2f} = {conclusion_cf:.4f}"
+
+    def _find_partial_matches(self, matched_items: List[Dict], query_conditions: List[Dict]) -> List[Dict]:
+        """Найти частичные совпадения с правилами"""
+        partial_rules = []
+
+        for rule in self.rules:
+            matched_count = 0
+            total_conditions = 0
+            missing = []
+
+            # Проверяем только факты, игнорируя операторы для частичных совпадений
             for condition in rule["if"]:
                 fact = condition.get("fact", "")
                 operator = condition.get("operator", "").upper()
                 is_group = condition.get("is_group", False)
 
                 if is_group and isinstance(fact, list):
-                    group_matched = True
-                    group_cfs = []
-
-                    for group_fact in fact:
-                        fact_matched = False
-                        fact_cf = 0.0
-
-                        for item_info in matched_items:
-                            if item_info["matched_fact"] == group_fact:
-                                if operator == "NOT":
-                                    fact_cf = 1.0 - item_info["cf"]
-                                    fact_matched = (fact_cf > 0)
-                                else:
-                                    fact_cf = item_info["cf"]
-                                    fact_matched = (fact_cf > 0)
-                                break
-
-                        group_matched = group_matched and fact_matched
-                        if fact_matched:
-                            group_cfs.append(fact_cf)
-
-                    if group_matched and group_cfs:
-                        min_group_cf = min(group_cfs)
-                        rule_conditions.append({
-                            "fact": f"группа: {', '.join(fact)}",
-                            "operator": operator,
-                            "matched": True,
-                            "cf": min_group_cf,
-                            "is_group": True
-                        })
-                        condition_results.append(True)
-                    else:
-                        rule_conditions.append({
-                            "fact": f"группа: {', '.join(fact)}",
-                            "operator": operator,
-                            "matched": False,
-                            "cf": 0.0,
-                            "is_group": True
-                        })
-                        condition_results.append(False)
-                else:
-                    condition_matched = False
-                    condition_cf = 0.0
-
-                    for item_info in matched_items:
-                        if item_info["matched_fact"] == fact:
-                            if operator == "NOT":
-                                condition_cf = 1.0 - item_info["cf"]
-                                condition_matched = (condition_cf > 0)
-                            else:
-                                condition_cf = item_info["cf"]
-                                condition_matched = (condition_cf > 0)
-                            break
-
-                    rule_conditions.append({
-                        "fact": fact,
-                        "operator": operator,
-                        "matched": condition_matched,
-                        "cf": condition_cf,
-                        "is_group": False
-                    })
-                    condition_results.append(condition_matched)
-
-            rule_satisfied = all(condition_results)
-
-            if rule_satisfied:
-                condition_cfs = [cond["cf"] for cond in rule_conditions if cond["matched"]]
-
-                if condition_cfs:
-                    min_condition_cf = min(condition_cfs)
-                    conclusion_cf = min_condition_cf * rule_cf
-
-                    if conclusion_name not in possible_conclusions or conclusion_cf > \
-                            possible_conclusions[conclusion_name]["cf"]:
-                        possible_conclusions[conclusion_name] = {
-                            "name": conclusion_name,
-                            "cf": conclusion_cf,
-                            "rule_cf": rule_cf,
-                            "conditions": [f"{cond['fact']}" + (f" {cond['operator']}" if cond['operator'] else "")
-                                           for cond in rule_conditions],
-                            "matched_conditions": [cond["fact"] for cond in rule_conditions if cond["matched"]],
-                            "min_condition_cf": min_condition_cf
-                        }
-
-        for conclusion_data in possible_conclusions.values():
-            confidence = self._get_confidence_level(conclusion_data["cf"])
-            result["conclusions"].append({
-                **conclusion_data,
-                "confidence": confidence
-            })
-
-        result["conclusions"].sort(key=lambda x: x["cf"], reverse=True)
-
-        if not result["conclusions"]:
-            partial_rules = []
-            for rule in self.rules:
-                matched_count = 0
-                total_conditions = 0
-
-                for condition in rule["if"]:
-                    fact = condition.get("fact", "")
-                    operator = condition.get("operator", "").upper()
-                    is_group = condition.get("is_group", False)
-
-                    if is_group and isinstance(fact, list):
-                        for group_fact in fact:
-                            total_conditions += 1
-                            for item_info in matched_items:
-                                if item_info["matched_fact"] == group_fact:
-                                    if operator == "NOT":
-                                        if item_info["cf"] < 0.5:
-                                            matched_count += 1
-                                    else:
-                                        matched_count += 1
-                                    break
-                    else:
+                    for f in fact:
                         total_conditions += 1
-                        for item_info in matched_items:
-                            if item_info["matched_fact"] == fact:
-                                if operator == "NOT":
-                                    if item_info["cf"] < 0.5:
-                                        matched_count += 1
-                                else:
-                                    matched_count += 1
-                                break
-
-                if matched_count > 0 and matched_count < total_conditions:
-                    missing_conditions = []
-                    for condition in rule["if"]:
-                        fact = condition.get("fact", "")
-                        is_group = condition.get("is_group", False)
-
-                        if is_group and isinstance(fact, list):
-                            for group_fact in fact:
-                                found = any(s["matched_fact"] == group_fact for s in matched_items)
-                                if not found:
-                                    missing_conditions.append(group_fact)
+                        if self._fact_in_matched(f, operator, matched_items):
+                            matched_count += 1
                         else:
-                            found = any(s["matched_fact"] == fact for s in matched_items)
-                            if not found:
-                                missing_conditions.append(fact)
+                            missing.append(f)
+                else:
+                    total_conditions += 1
+                    if self._fact_in_matched(fact, operator, matched_items):
+                        matched_count += 1
+                    else:
+                        missing.append(fact)
 
-                    partial_rules.append({
-                        "conclusion": rule["then"],
-                        "matched": matched_count,
-                        "total": total_conditions,
-                        "missing": missing_conditions
-                    })
+            if matched_count > 0 and matched_count < total_conditions:
+                partial_rules.append({
+                    "conclusion": rule["then"],
+                    "matched": matched_count,
+                    "total": total_conditions,
+                    "missing": missing
+                })
 
-            if partial_rules:
-                result["partial_matches"] = {
-                    "message": "Не удалось сделать точный вывод",
-                    "partial_rules": partial_rules
-                }
-
-        return result
+        return partial_rules
 
     def _get_confidence_level(self, cf: float) -> str:
         """Определить уровень уверенности на основе CF"""
