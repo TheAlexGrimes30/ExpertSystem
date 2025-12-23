@@ -161,13 +161,18 @@ class ExpertSystem:
             raise ValueError("Коэффициент уверенности должен быть от 0 до 1")
 
         if isinstance(conditions, str):
+            # Если передали строку - парсим как обычно
             conditions = self.parse_conditions_string(conditions)
         elif isinstance(conditions, list):
+            # ИСПРАВЛЕНИЕ ДЛЯ JSON: ["A", "B"] → A И B
             parsed_conditions = []
-            for condition in conditions:
+            for i, condition in enumerate(conditions):
                 if isinstance(condition, str):
-                    parsed = self.parse_conditions_string(condition)
-                    parsed_conditions.extend(parsed)
+                    parsed_conditions.append({
+                        "fact": condition,
+                        "operator": "AND" if i < len(conditions) - 1 else "",
+                        "is_group": False
+                    })
                 elif isinstance(condition, dict):
                     parsed_conditions.append(condition)
             conditions = parsed_conditions
@@ -398,8 +403,15 @@ class ExpertSystem:
         """Сопоставить факт с базой знаний"""
         matched = False
 
+        # Нормализуем входной факт для поиска
+        input_normalized = ' '.join(fact_name.lower().replace('_', ' ').split())
+
         for stored_fact in all_fact_names:
-            if self._facts_match(fact_name, stored_fact):
+            # Нормализуем сохраненный факт
+            stored_normalized = ' '.join(stored_fact.lower().replace('_', ' ').split())
+
+            # Проверяем точное совпадение после нормализации
+            if input_normalized == stored_normalized:
                 cf = self.facts[stored_fact]
                 if operator == "NOT":
                     cf = 1.0 - cf
@@ -423,34 +435,27 @@ class ExpertSystem:
 
     def _facts_match(self, input_fact: str, stored_fact: str) -> bool:
         """Проверить, соответствует ли входной факт сохраненному факту"""
-        input_lower = input_fact.lower().replace('_', ' ')
-        stored_lower = stored_fact.lower().replace('_', ' ')
+        # Нормализуем оба факта: заменяем подчеркивания на пробелы, приводим к нижнему регистру
+        input_normalized = ' '.join(input_fact.lower().replace('_', ' ').split())
+        stored_normalized = ' '.join(stored_fact.lower().replace('_', ' ').split())
 
-        if input_lower == stored_lower:
-            return True
-
-        if input_lower in stored_lower or stored_lower in input_lower:
-            return True
-
-        input_words = set(input_lower.split())
-        stored_words = set(stored_lower.split())
-
-        if input_words.intersection(stored_words):
-            return True
-
-        return False
+        # Проверяем точное совпадение после нормализации
+        return input_normalized == stored_normalized
 
     def _fact_in_matched(self, fact_name: str, operator: str, matched_items: List[Dict]) -> bool:
         """Проверить, есть ли факт в сопоставленных элементах"""
+        # Нормализуем факт для сравнения
+        fact_normalized = ' '.join(fact_name.lower().replace('_', ' ').split())
+
         for item in matched_items:
             item_fact = item["matched_fact"]
             if item_fact is None:
                 continue
 
-            item_fact_lower = item_fact.lower().replace('_', ' ')
-            fact_name_lower = fact_name.lower().replace('_', ' ')
+            # Нормализуем факт из matched_items
+            item_fact_normalized = ' '.join(item_fact.lower().replace('_', ' ').split())
 
-            if item_fact_lower == fact_name_lower:
+            if item_fact_normalized == fact_normalized:
                 if operator == "NOT":
                     return item["cf"] > 0
                 else:
@@ -500,14 +505,17 @@ class ExpertSystem:
 
     def _get_matched_cf(self, fact_name: str, operator: str, matched_items: List[Dict]) -> float:
         """Получить CF из сопоставленных элементов"""
+        # Нормализуем факт для сравнения
+        fact_normalized = ' '.join(fact_name.lower().replace('_', ' ').split())
+
         for item in matched_items:
             if item["matched_fact"] is None:
                 continue
 
-            item_fact_lower = item["matched_fact"].lower().replace('_', ' ')
-            fact_name_lower = fact_name.lower().replace('_', ' ')
+            # Нормализуем факт из matched_items
+            item_fact_normalized = ' '.join(item["matched_fact"].lower().replace('_', ' ').split())
 
-            if item_fact_lower == fact_name_lower:
+            if item_fact_normalized == fact_normalized:
                 cf = item["cf"]
                 return cf
         return 0.0
@@ -622,7 +630,11 @@ class ExpertSystem:
     def load_from_dict(self, data: dict):
         """Загрузить состояние системы из словаря"""
         self.facts = data.get("facts", {})
-        self.rules = data.get("rules", [])
+        self.rules = []
+
+        # Преобразуем правила из формата JSON
+        for rule in data.get("rules", []):
+            self.add_rule(rule["if"], rule["then"], rule["cf"])
 
     def to_dict(self):
         """Преобразовать состояние системы в словарь"""
