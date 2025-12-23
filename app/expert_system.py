@@ -1,3 +1,10 @@
+import json
+import os
+from pathlib import Path
+from typing import List, Dict
+import re
+
+
 class ExpertSystem:
     def __init__(self):
         self.facts = {}
@@ -14,102 +21,157 @@ class ExpertSystem:
         if fact in self.facts:
             del self.facts[fact]
 
-    def parse_conditions_string(self, conditions_str: str):
-        """Парсинг строки условий со скобками и операторами"""
-        conditions = []
-        tokens = conditions_str.split(',')
+    def parse_conditions_string(self, conditions_str: str) -> List[Dict]:
+        """Парсинг строки условий в новом формате"""
+        conditions_str = conditions_str.strip()
+        if not conditions_str:
+            return []
 
+        result = []
+
+        # Обрабатываем скобки и операторы
         i = 0
-        while i < len(tokens):
-            token = tokens[i].strip()
-
-            if not token:
+        while i < len(conditions_str):
+            # Пропускаем пробелы
+            if conditions_str[i].isspace():
                 i += 1
                 continue
 
-            if token.upper() in ['И', 'ИЛИ', 'НЕТ']:
-                if conditions:
-                    conditions[-1]["operator"] = token.upper()
-                i += 1
-                continue
-
-            if '(' in token:
-                group_tokens = []
-                group_depth = 1
-                current_token = token
-
-                while i < len(tokens) and group_depth > 0:
-                    current_token = tokens[i].strip()
-                    open_count = current_token.count('(')
-                    close_count = current_token.count(')')
-                    group_depth += open_count - close_count
-
-                    clean_token = current_token.replace('(', '').replace(')', '').strip()
-                    if clean_token and clean_token.upper() not in ['И', 'ИЛИ', 'НЕТ']:
-                        group_tokens.append(clean_token)
-
+            # Обработка оператора НЕТ
+            if conditions_str[i:].lower().startswith('нет '):
+                i += 4  # Пропускаем "нет " (4 символа)
+                # Получаем факт после НЕТ
+                fact_start = i
+                while i < len(conditions_str) and not conditions_str[i].isspace() and conditions_str[i] != ',':
                     i += 1
+                fact = conditions_str[fact_start:i].strip()
 
-                operator = ''
-                if i < len(tokens) and tokens[i].strip().upper() in ['И', 'ИЛИ', 'НЕТ']:
-                    operator = tokens[i].strip().upper()
-                    i += 1
-
-                conditions.append({
-                    "fact": group_tokens,
-                    "operator": operator,
-                    "is_group": True
+                result.append({
+                    "fact": fact,
+                    "operator": "NOT",
+                    "is_group": False
                 })
                 continue
 
-            conditions.append({
-                "fact": token,
-                "operator": '',
-                "is_group": False
-            })
+            # Обработка оператора ИЛИ
+            if conditions_str[i:].lower().startswith('или '):
+                if result:
+                    result[-1]["operator"] = "OR"
+                i += 3  # Пропускаем "или" (3 символа)
+                continue
+
+            # Обработка оператора И (только если отдельное слово)
+            if conditions_str[i:].lower().startswith('и ') and i + 1 < len(conditions_str) and conditions_str[
+                i + 1].isspace():
+                if result:
+                    result[-1]["operator"] = "AND"
+                i += 2  # Пропускаем "и " (2 символа)
+                continue
+
+            # Обработка скобок
+            if conditions_str[i] == '(':
+                # Находим закрывающую скобку
+                depth = 1
+                j = i + 1
+                while j < len(conditions_str) and depth > 0:
+                    if conditions_str[j] == '(':
+                        depth += 1
+                    elif conditions_str[j] == ')':
+                        depth -= 1
+                    j += 1
+
+                group_content = conditions_str[i + 1:j - 1].strip()
+
+                # Рекурсивно парсим содержимое группы
+                if group_content:
+                    # Если в группе несколько условий через запятую
+                    if ',' in group_content:
+                        group_items = [item.strip() for item in group_content.split(',')]
+                        group_facts = []
+
+                        for item in group_items:
+                            if item and item.lower() not in ['и', 'или', 'нет']:
+                                group_facts.append(item)
+
+                        if group_facts:
+                            result.append({
+                                "fact": group_facts,
+                                "operator": "",
+                                "is_group": True
+                            })
+                    else:
+                        # Одиночный факт в скобках
+                        result.append({
+                            "fact": group_content,
+                            "operator": "",
+                            "is_group": True
+                        })
+
+                i = j
+                continue
+
+            # Обычный факт
+            fact_start = i
+
+            # Ищем конец факта
+            while i < len(conditions_str):
+                # Проверяем на начало оператора
+                lookahead = conditions_str[i:].lower()
+                if lookahead.startswith((' и ', ' или ', ' нет ')):
+                    break
+                if conditions_str[i] in ',()':
+                    break
+                i += 1
+
+            fact = conditions_str[fact_start:i].strip()
+
+            # Пропускаем запятые, если есть
+            if i < len(conditions_str) and conditions_str[i] == ',':
+                i += 1
+
+            if fact and fact.lower() not in ['и', 'или', 'нет']:
+                result.append({
+                    "fact": fact,
+                    "operator": "",  # Оператор будет добавлен позже
+                    "is_group": False
+                })
+                continue
+
             i += 1
 
-        return conditions
+        # Обрабатываем запятые как операторы И
+        for i in range(len(result)):
+            # Если после элемента была запятая, значит это И
+            if i > 0 and result[i].get("operator", "") == "":
+                # Проверяем, был ли предыдущий элемент без оператора
+                # (значит между ними была запятая или просто пробел)
+                if i - 1 >= 0 and result[i - 1].get("operator", "") == "":
+                    result[i - 1]["operator"] = "AND"
 
-    def add_rule(self, conditions: list, conclusion: str, cf: float):
+        return result
+
+    def add_rule(self, conditions, conclusion: str, cf: float):
         """Добавить правило"""
         if not 0 <= cf <= 1:
             raise ValueError("Коэффициент уверенности должен быть от 0 до 1")
 
+        # Если conditions - строка, парсим ее
+        if isinstance(conditions, str):
+            conditions = self.parse_conditions_string(conditions)
+
+        # Обрабатываем структурированные условия
         structured_conditions = []
 
         for condition in conditions:
             if isinstance(condition, dict):
-                if condition.get("is_group", False):
-                    group_facts = condition.get("fact", [])
-                    if isinstance(group_facts, list):
-                        for fact in group_facts:
-                            structured_conditions.append({
-                                "fact": fact,
-                                "operator": condition.get("operator", "").upper(),
-                                "is_group": True
-                            })
-                    else:
-                        structured_conditions.append({
-                            "fact": group_facts,
-                            "operator": condition.get("operator", "").upper(),
-                            "is_group": True
-                        })
-                else:
-                    structured_conditions.append({
-                        "fact": condition.get("fact", ""),
-                        "operator": condition.get("operator", "").upper(),
-                        "is_group": False
-                    })
+                structured_conditions.append(condition)
             elif isinstance(condition, str):
                 parsed = self.parse_conditions_string(condition)
                 structured_conditions.extend(parsed)
             else:
-                structured_conditions.append({
-                    "fact": str(condition).strip(),
-                    "operator": "",
-                    "is_group": False
-                })
+                # Преобразуем к строке и парсим
+                parsed = self.parse_conditions_string(str(condition))
+                structured_conditions.extend(parsed)
 
         self.rules.append({
             "if": structured_conditions,
@@ -128,7 +190,7 @@ class ExpertSystem:
         operator = condition.get("operator", "").upper()
         fact_cf = self.facts.get(fact, 0)
 
-        if operator == "НЕТ":
+        if operator == "NOT":
             return 1.0 - fact_cf
         return fact_cf
 
@@ -226,25 +288,40 @@ class ExpertSystem:
 
     def query(self, symptoms_input: str):
         """Выполнить анализ на основе введенных данных"""
-        symptoms = [s.strip().lower() for s in symptoms_input.split(',') if s.strip()]
+        # Парсим входные данные
+        parsed_conditions = self.parse_conditions_string(symptoms_input)
 
-        if not symptoms:
+        if not parsed_conditions:
             return {
                 "success": False,
-                "error": "Введите данные через запятую"
+                "error": "Введите корректные данные"
             }
+
+        # Извлекаем факты из парсинга
+        input_facts = []
+        for condition in parsed_conditions:
+            if condition.get("is_group", False):
+                if isinstance(condition["fact"], list):
+                    input_facts.extend(condition["fact"])
+                else:
+                    input_facts.append(condition["fact"])
+            else:
+                input_facts.append(condition["fact"])
 
         result = {
             "success": True,
             "query": symptoms_input,
+            "parsed_conditions": parsed_conditions,
+            "input_facts": input_facts,
             "conclusions": [],
             "matched_items": [],
             "missing_items": {},
             "partial_matches": None
         }
 
+        # Сопоставляем факты
         matched_items = []
-        for symptom in symptoms:
+        for symptom in input_facts:
             found = False
             for fact_name in self.facts.keys():
                 fact_lower = fact_name.lower()

@@ -11,7 +11,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
-from expert_system import ExpertSystem
+from app.expert_system import ExpertSystem
 
 app = FastAPI(
     title="Универсальная экспертная система",
@@ -42,18 +42,6 @@ expert_system = ExpertSystem()
 # Pydantic модели для валидации данных
 class FactData(BaseModel):
     fact: str
-    cf: float
-
-
-class RuleCondition(BaseModel):
-    fact: str | List[str]
-    operator: str = ""
-    is_group: bool = False
-
-
-class RuleData(BaseModel):
-    conditions: List[RuleCondition | Dict]
-    conclusion: str
     cf: float
 
 
@@ -187,16 +175,24 @@ async def delete_fact(fact: str):
 async def add_rule(rule_data: dict):
     """Добавить новое правило"""
     try:
-        conditions = rule_data.get("conditions", [])
+        # Получаем данные - теперь conditions может быть строкой
+        conditions_input = rule_data.get("conditions", "")
         conclusion = rule_data.get("conclusion", "")
         cf = float(rule_data.get("cf", 0.5))
 
-        if not conditions:
+        if not conditions_input:
             raise HTTPException(status_code=400, detail="Условия не могут быть пустыми")
         if not conclusion:
             raise HTTPException(status_code=400, detail="Заключение не может быть пустым")
 
-        expert_system.add_rule(conditions, conclusion, cf)
+        # Если conditions - строка, парсим ее
+        if isinstance(conditions_input, str):
+            # Парсим строку условий
+            expert_system.add_rule(conditions_input, conclusion, cf)
+        else:
+            # Старый формат для обратной совместимости
+            expert_system.add_rule(conditions_input, conclusion, cf)
+
         return JSONResponse(content={
             "success": True,
             "rules": expert_system.rules
@@ -243,7 +239,7 @@ async def make_query(query_data: QueryData):
                 status_code=400,
                 content={
                     "success": False,
-                    "error": "Введите данные через запятую (например: двигатель_шум, вибрация, дым)"
+                    "error": "Введите данные для анализа"
                 }
             )
 

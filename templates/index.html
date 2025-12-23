@@ -115,20 +115,24 @@
                 <div id="rulesTab" class="tab-content">
                     <h3>Управление правилами</h3>
                     <div class="input-group">
-                        <input type="text" id="conditionsInput" placeholder="Условия через запятую">
+                        <input type="text" id="conditionsInput" placeholder="Условия в новом формате">
                         <input type="text" id="conclusionInput" placeholder="Заключение">
                         <input type="number" id="ruleCF" placeholder="CF правила" min="0" max="1" step="0.1" value="0.9">
                         <button onclick="addOrEditRule()">Добавить</button>
                         <button onclick="clearRuleInputs()" class="btn-secondary">Очистить</button>
                     </div>
                     <div class="hint-box">
-                        <p><strong>Примеры для разных областей:</strong></p>
+                        <p><strong>Формат ввода условий:</strong></p>
                         <ul>
-                            <li><strong>Авто:</strong> двигатель_шум, вибрация, дым → неисправность_двигателя</li>
-                            <li><strong>IT:</strong> медленная_работа, сбои, перегрев → проблемы_с_железом</li>
-                            <li><strong>Кулинария:</strong> горький_вкус, пересол → испорченное_блюдо</li>
+                            <li><strong>кашель</strong> - одиночное условие</li>
+                            <li><strong>кашель, насморк</strong> - кашель И насморк</li>
+                            <li><strong>НЕТ кашель</strong> - отрицание</li>
+                            <li><strong>кашель ИЛИ насморк</strong> - логическое ИЛИ</li>
+                            <li><strong>(кашель, насморк) ИЛИ больное горло</strong> - группировка</li>
+                            <li><strong>кашель,насморк,больное горло</strong> - несколько условий через запятую (И)</li>
+                            <li><strong>НЕТ кашель, насморк</strong> - нет кашля, но есть насморк</li>
                         </ul>
-                        <p>Операторы: И, ИЛИ, НЕТ</p>
+                        <p>По умолчанию запятая означает оператор И</p>
                     </div>
                     <div class="list-container">
                         <h4>Список правил</h4>
@@ -142,16 +146,18 @@
                 <div id="queryTab" class="tab-content">
                     <h3>Анализ данных</h3>
                     <div class="input-group">
-                        <input type="text" id="queryInput" placeholder="Введите данные через запятую">
+                        <input type="text" id="queryInput" placeholder="Введите данные в новом формате">
                         <button onclick="executeQuery()">Проанализировать</button>
                     </div>
                     <div class="hint-box">
-                        <p>Введите характеристики, симптомы, параметры через запятую.</p>
+                        <p>Введите характеристики, симптомы, параметры в удобном формате.</p>
                         <p><strong>Примеры:</strong></p>
                         <ul>
-                            <li>Для авто: двигатель_шум, вибрация, дым_из_выхлопа</li>
-                            <li>Для ПК: медленная_работа, синий_экран, перегрев</li>
-                            <li>Для медицины: кашель, температура, слабость</li>
+                            <li><strong>кашель, температура</strong> - оба симптома</li>
+                            <li><strong>кашель ИЛИ насморк</strong> - любой из симптомов</li>
+                            <li><strong>(кашель, температура) ИЛИ головная боль</strong> - группировка</li>
+                            <li><strong>НЕТ кашель, температура</strong> - нет кашля, но есть температура</li>
+                            <li><strong>кашель,насморк,больное горло</strong> - все три симптома</li>
                         </ul>
                     </div>
                     <div id="queryResults" class="scrollable-list">

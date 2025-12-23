@@ -113,129 +113,20 @@ function selectFact(fact, element) {
     document.getElementById('factCF').value = currentFacts[fact];
 }
 
-function parseConditions(rawConditions) {
-    const conditions = [];
-    const operatorMap = {
-        'И': 'AND',
-        'ИЛИ': 'OR',
-        'НЕТ': 'NOT'
-    };
-
-    let i = 0;
-    while (i < rawConditions.length) {
-        const rawCondition = rawConditions[i].trim();
-
-        if (!rawCondition) {
-            i++;
-            continue;
-        }
-
-        if (operatorMap[rawCondition.toUpperCase()]) {
-            if (conditions.length > 0) {
-                conditions[conditions.length - 1].operator = operatorMap[rawCondition.toUpperCase()];
-            }
-            i++;
-            continue;
-        }
-
-        if (rawCondition.startsWith('(')) {
-            let groupText = rawCondition;
-            let groupDepth = 1;
-            let j = i;
-
-            while (j < rawConditions.length && groupDepth > 0) {
-                if (j > i) {
-                    groupText += ', ' + rawConditions[j].trim();
-                }
-                const token = rawConditions[j].trim();
-                const openCount = (token.match(/\(/g) || []).length;
-                const closeCount = (token.match(/\)/g) || []).length;
-                groupDepth += openCount - closeCount;
-                j++;
-            }
-
-            i = j - 1;
-            const cleanGroup = groupText.replace(/[()]/g, '').trim();
-            const groupItems = cleanGroup.split(',').map(f => f.trim()).filter(f => f);
-
-            const groupFacts = [];
-            let groupOperator = '';
-
-            for (const item of groupItems) {
-                if (operatorMap[item.toUpperCase()]) {
-                    groupOperator = operatorMap[item.toUpperCase()];
-                } else {
-                    groupFacts.push(item);
-                }
-            }
-
-            let operatorAfterGroup = '';
-            if (i + 1 < rawConditions.length) {
-                const nextToken = rawConditions[i + 1]?.trim().toUpperCase();
-                if (operatorMap[nextToken]) {
-                    operatorAfterGroup = operatorMap[nextToken];
-                    i++;
-                }
-            }
-
-            conditions.push({
-                fact: groupFacts,
-                operator: groupOperator || operatorAfterGroup,
-                is_group: true
-            });
-
-            i++;
-            continue;
-        }
-
-        let fact = rawCondition;
-        let operator = '';
-        const words = rawCondition.split(' ');
-        const lastWord = words[words.length - 1].toUpperCase();
-
-        if (operatorMap[lastWord]) {
-            operator = operatorMap[lastWord];
-            fact = words.slice(0, -1).join(' ').trim();
-        } else if (i < rawConditions.length - 1) {
-            const nextToken = rawConditions[i + 1]?.trim().toUpperCase();
-            if (operatorMap[nextToken]) {
-                operator = operatorMap[nextToken];
-                i++;
-            } else {
-                operator = 'AND';
-            }
-        }
-
-        conditions.push({
-            fact: fact,
-            operator: operator,
-            is_group: false
-        });
-
-        i++;
-    }
-
-    if (conditions.length > 0) {
-        conditions[conditions.length - 1].operator = '';
-    }
-
-    return conditions;
-}
-
 function addOrEditRule() {
     const conditionsInput = document.getElementById('conditionsInput');
     const conclusionInput = document.getElementById('conclusionInput');
     const ruleCFInput = document.getElementById('ruleCF');
 
-    const rawConditions = conditionsInput.value.split(',').map(c => c.trim()).filter(c => c);
+    const conditionsText = conditionsInput.value.trim();
 
-    if (rawConditions.length === 0) {
-        alert('Пожалуйста, введите хотя бы одно условие');
+    if (!conditionsText) {
+        alert('Пожалуйста, введите условия');
         return;
     }
 
     try {
-        const conditions = parseConditions(rawConditions);
+        const conditions = conditionsText;
         const conclusion = conclusionInput.value.trim();
         const cf = parseFloat(ruleCFInput.value);
 
@@ -274,8 +165,8 @@ function addOrEditRule() {
             alert('Ошибка при сохранении правила');
         });
     } catch (error) {
-        console.error('Error parsing conditions:', error);
-        alert('Ошибка при разборе условий. Проверьте синтаксис.');
+        console.error('Error:', error);
+        alert('Ошибка при сохранении правила: ' + error.message);
     }
 }
 
@@ -339,33 +230,31 @@ function formatConditionsForInput(conditions) {
         const cond = conditions[i];
 
         if (cond.is_group && Array.isArray(cond.fact)) {
-            let groupText = '(' + cond.fact.join(', ');
-            if (cond.operator && cond.operator !== 'AND') {
-                groupText += ' ' + getOperatorDisplay(cond.operator);
-            }
-            groupText += ')';
-            result.push(groupText);
+            result.push('(' + cond.fact.join(', ') + ')');
         } else {
             let factText = cond.fact;
-            if (cond.operator && cond.operator !== 'AND') {
-                factText += ' ' + getOperatorDisplay(cond.operator);
+            if (cond.operator === 'NOT') {
+                factText = 'НЕТ ' + factText;
             }
             result.push(factText);
         }
 
-        if (i < conditions.length - 1) {
-            const nextCond = conditions[i + 1];
-            if (nextCond.operator === 'AND' || (!nextCond.operator && i < conditions.length - 2)) {
+        if (i < conditions.length - 1 && cond.operator) {
+            if (cond.operator === 'AND') {
                 result.push('И');
-            } else if (nextCond.operator === 'OR') {
+            } else if (cond.operator === 'OR') {
                 result.push('ИЛИ');
-            } else if (nextCond.operator === 'NOT') {
-                result.push('НЕТ');
             }
         }
     }
 
-    return result.join(', ');
+    // Удаляем последний оператор, если он есть
+    const lastItem = result[result.length - 1];
+    if (lastItem === 'И' || lastItem === 'ИЛИ') {
+        result.pop();
+    }
+
+    return result.join(' ');
 }
 
 function executeQuery() {
@@ -407,7 +296,7 @@ function displayQueryResults(query, result) {
     let html = `<h3>Результаты анализа</h3>`;
     html += `<p><strong>Введенные данные:</strong> ${result.query}</p>`;
 
-    if (result.matched_items && result.matched_items.length > 0) {
+    if (result.parsed_conditions) {
         html += '<div style="margin: 15px 0;">';
         html += '<h4>Распознанные элементы:</h4>';
         result.matched_items.forEach((item, index) => {
@@ -444,7 +333,7 @@ function displayQueryResults(query, result) {
                         <strong>Уверенность:</strong> ${conclusion.cf.toFixed(4)}
                     </div>
                     <div style="margin-bottom: 10px;">
-                        <strong>На основании:</strong> ${conclusion.conditions.join(' И ')}
+                        <strong>На основании:</strong> ${conclusion.conditions.join(' ')}
                     </div>
                     <div style="font-family: monospace; background: #f8f9fa; padding: 8px; border-radius: 4px;">
                         min(${conclusion.min_condition_cf.toFixed(2)}) × ${conclusion.rule_cf.toFixed(2)} = ${conclusion.cf.toFixed(4)}
@@ -649,15 +538,21 @@ function displayRules() {
             if (cond.is_group && Array.isArray(cond.fact)) {
                 conditionsText += `(${cond.fact.join(', ')})`;
             } else {
-                conditionsText += cond.fact;
-            }
-
-            if (cond.operator) {
-                conditionsText += ` ${getOperatorDisplay(cond.operator)}`;
+                let factText = cond.fact;
+                if (cond.operator === 'NOT') {
+                    factText = 'НЕТ ' + factText;
+                }
+                conditionsText += factText;
             }
 
             if (i < rule.if.length - 1) {
-                conditionsText += ' ';
+                if (cond.operator === 'AND') {
+                    conditionsText += ' И ';
+                } else if (cond.operator === 'OR') {
+                    conditionsText += ' ИЛИ ';
+                } else {
+                    conditionsText += ' ';
+                }
             }
         });
 
@@ -694,16 +589,6 @@ function loadCurrentState() {
         .catch(error => {
             console.error('Error:', error);
         });
-}
-
-function getOperatorDisplay(operator) {
-    const displayMap = {
-        'AND': 'И',
-        'OR': 'ИЛИ',
-        'NOT': 'НЕТ',
-        '': ''
-    };
-    return displayMap[operator] || operator;
 }
 
 document.addEventListener('keypress', function(event) {
