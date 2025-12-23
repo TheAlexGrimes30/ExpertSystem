@@ -107,119 +107,392 @@
             </div>
         </header>
 
-        <!-- Остальной контент остается без изменений -->
         <div class="main-content">
-            <div class="panel">
-                <h2>База знаний</h2>
-                <div class="file-management">
-                    <h3>Управление базами знаний</h3>
-                    <select id="knowledgeBaseList" size="5"></select>
-                    <div class="input-group">
-                        <button onclick="loadSelectedBase()" class="btn-success">Загрузить</button>
-                        <button onclick="saveCurrentBase()" class="btn-primary">Сохранить</button>
-                        <button onclick="deleteSelectedBase()" class="btn-danger">Удалить</button>
+            <!-- Красивая панель базы знаний -->
+            <div class="knowledge-panel">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <i class="fas fa-database"></i>
+                        <h2>База знаний</h2>
+                    </div>
+                    <div class="panel-badge">
+                        <i class="fas fa-info-circle"></i>
+                        <span>Expert System v2.0</span>
                     </div>
                 </div>
-                <div class="current-state">
-                    <h3>Текущее состояние</h3>
-                    <div class="stats">
-                        <div class="stat">
-                            <div>Фактов</div>
-                            <div class="stat-value" id="factCount">0</div>
+
+                <div class="panel-content">
+                    <div class="file-management-section">
+                        <div class="section-header">
+                            <i class="fas fa-folder-open"></i>
+                            <h3>Управление базами знаний</h3>
                         </div>
-                        <div class="stat">
-                            <div>Правил</div>
-                            <div class="stat-value" id="ruleCount">0</div>
+
+                        <div class="file-selector">
+                            <div class="selector-header">
+                                <i class="fas fa-file-alt"></i>
+                                <span>Доступные базы</span>
+                                <span class="file-count">3 файла</span>
+                            </div>
+                            <select id="knowledgeBaseList" class="file-list">
+                                <option value="auto.json">🚗 auto.json - Автосервис</option>
+                                <option value="medicine.json">🏥 medicine.json - Медицина</option>
+                                <option value="pc.json">💻 pc.json - Выбор ПК</option>
+                            </select>
+                        </div>
+
+                        <div class="file-actions">
+                            <button onclick="loadSelectedBase()" class="file-btn btn-load">
+                                <i class="fas fa-download"></i>
+                                <span>Загрузить</span>
+                            </button>
+                            <button onclick="saveCurrentBase()" class="file-btn btn-save">
+                                <i class="fas fa-save"></i>
+                                <span>Сохранить</span>
+                            </button>
+                            <button onclick="deleteSelectedBase()" class="file-btn btn-delete">
+                                <i class="fas fa-trash"></i>
+                                <span>Удалить</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="system-state-section">
+                        <div class="section-header">
+                            <i class="fas fa-chart-bar"></i>
+                            <h3>Текущее состояние</h3>
+                        </div>
+
+                        <div class="stats-grid">
+                            <div class="stat-card facts-stat">
+                                <div class="stat-icon">
+                                    <i class="fas fa-check-circle"></i>
+                                </div>
+                                <div class="stat-content">
+                                    <div class="stat-label">Фактов</div>
+                                    <div class="stat-value" id="factCount">0</div>
+                                    <div class="stat-desc">в базе знаний</div>
+                                </div>
+                                <div class="stat-progress">
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" id="factProgress"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="stat-card rules-stat">
+                                <div class="stat-icon">
+                                    <i class="fas fa-sitemap"></i>
+                                </div>
+                                <div class="stat-content">
+                                    <div class="stat-label">Правил</div>
+                                    <div class="stat-value" id="ruleCount">0</div>
+                                    <div class="stat-desc">логических правил</div>
+                                </div>
+                                <div class="stat-progress">
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" id="ruleProgress"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="system-info">
+                            <div class="info-item">
+                                <i class="fas fa-info-circle"></i>
+                                <div>
+                                    <strong>CF (Coefficient)</strong>
+                                    <small>Коэффициент уверенности 0-1</small>
+                                </div>
+                            </div>
+                            <div class="info-item">
+                                <i class="fas fa-lightbulb"></i>
+                                <div>
+                                    <strong>Метод Шортлиффа</strong>
+                                    <small>Вероятностный вывод</small>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="panel" style="flex: 2;">
-                <div class="tab-buttons">
-                    <button class="tab-btn active" onclick="showTab('facts')">Факты</button>
-                    <button class="tab-btn" onclick="showTab('rules')">Правила</button>
-                    <button class="tab-btn" onclick="showTab('query')">Анализ</button>
+            <!-- Правая панель (основные функции) -->
+            <div class="main-panel">
+                <div class="tab-navigation">
+                    <button class="tab-btn active" onclick="showTab('facts')">
+                        <i class="fas fa-list-check"></i>
+                        <span>Факты</span>
+                    </button>
+                    <button class="tab-btn" onclick="showTab('rules')">
+                        <i class="fas fa-diagram-project"></i>
+                        <span>Правила</span>
+                    </button>
+                    <button class="tab-btn" onclick="showTab('query')">
+                        <i class="fas fa-magnifying-glass-chart"></i>
+                        <span>Анализ</span>
+                    </button>
                 </div>
 
+                <!-- Вкладка Факты -->
                 <div id="factsTab" class="tab-content active">
-                    <h3>Управление фактами</h3>
-                    <div class="input-group">
-                        <input type="text" id="factInput" placeholder="Введите факт">
-                        <input type="number" id="factCF" placeholder="CF (0-1)" min="0" max="1" step="0.1" value="0.8">
-                        <button onclick="addOrEditFact()">Добавить</button>
-                        <button onclick="clearFactInputs()" class="btn-secondary">Очистить</button>
+                    <div class="section-header">
+                        <h2><i class="fas fa-list-check"></i> Управление фактами</h2>
+                        <p>Добавляйте, редактируйте и удаляйте факты с коэффициентами уверенности</p>
                     </div>
+
+                    <div class="input-card">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Факт</label>
+                                <input type="text" id="factInput" class="form-input" placeholder="Введите название факта...">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Коэффициент (CF)</label>
+                                <input type="number" id="factCF" class="form-input" placeholder="0.0 - 1.0" min="0" max="1" step="0.1" value="0.8">
+                            </div>
+                        </div>
+
+                        <div class="button-row">
+                            <button onclick="addOrEditFact()" class="btn btn-primary">
+                                <i class="fas fa-plus"></i>
+                                <span>Добавить факт</span>
+                            </button>
+                            <button onclick="clearFactInputs()" class="btn btn-secondary">
+                                <i class="fas fa-eraser"></i>
+                                <span>Очистить</span>
+                            </button>
+                            <button onclick="deleteSelectedFact()" class="btn btn-danger">
+                                <i class="fas fa-trash"></i>
+                                <span>Удалить выбранный</span>
+                            </button>
+                        </div>
+                    </div>
+
                     <div class="list-container">
-                        <h4>Список фактов</h4>
+                        <div class="list-header">
+                            <h3><i class="fas fa-list"></i> Список фактов</h3>
+                            <span class="badge" id="factCountBadge">0</span>
+                        </div>
+
                         <div id="factsList" class="scrollable-list">
-                            <div class="empty-message">Факты отсутствуют</div>
+                            <div class="empty-state">
+                                <i class="fas fa-inbox"></i>
+                                <h4>Факты отсутствуют</h4>
+                                <p>Добавьте первый факт для начала работы</p>
+                            </div>
                         </div>
-                        <button onclick="deleteSelectedFact()" class="btn-danger">Удалить выбранный</button>
                     </div>
                 </div>
 
+                <!-- Вкладка Правила -->
                 <div id="rulesTab" class="tab-content">
-                    <h3>Управление правилами</h3>
-                    <div class="input-group">
-                        <input type="text" id="conditionsInput" placeholder="Условия в новом формате">
-                        <input type="text" id="conclusionInput" placeholder="Заключение">
-                        <input type="number" id="ruleCF" placeholder="CF правила" min="0" max="1" step="0.1" value="0.9">
-                        <button onclick="addOrEditRule()">Добавить</button>
-                        <button onclick="clearRuleInputs()" class="btn-secondary">Очистить</button>
+                    <div class="section-header">
+                        <h2><i class="fas fa-diagram-project"></i> Управление правилами</h2>
+                        <p>Создавайте логические правила для экспертной системы</p>
                     </div>
-                    <div class="hint-box">
-                        <p><strong>Формат ввода условий:</strong></p>
-                        <ul>
-                            <li><strong>кашель</strong> - одиночное условие</li>
-                            <li><strong>кашель, насморк</strong> - кашель И насморк</li>
-                            <li><strong>НЕТ кашель</strong> - отрицание</li>
-                            <li><strong>кашель ИЛИ насморк</strong> - логическое ИЛИ</li>
-                            <li><strong>(кашель, насморк) ИЛИ больное горло</strong> - группировка</li>
-                            <li><strong>кашель,насморк,больное горло</strong> - несколько условий через запятую (И)</li>
-                            <li><strong>НЕТ кашель, насморк</strong> - нет кашля, но есть насморк</li>
-                        </ul>
-                        <p>По умолчанию запятая означает оператор И</p>
-                    </div>
-                    <div class="list-container">
-                        <h4>Список правил</h4>
-                        <div id="rulesList" class="scrollable-list">
-                            <div class="empty-message">Правила отсутствуют</div>
+
+                    <div class="input-card">
+                        <div class="form-row">
+                            <div class="form-group full-width">
+                                <label class="form-label">
+                                    <i class="fas fa-code-branch"></i>
+                                    Условия (новый формат)
+                                </label>
+                                <input type="text" id="conditionsInput" class="form-input" placeholder="Пример: кашель, температура ИЛИ насморк">
+                            </div>
                         </div>
-                        <button onclick="deleteSelectedRule()" class="btn-danger">Удалить выбранное</button>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">
+                                    <i class="fas fa-arrow-right"></i>
+                                    Заключение
+                                </label>
+                                <input type="text" id="conclusionInput" class="form-input" placeholder="Что следует из условий?">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">
+                                    <i class="fas fa-percent"></i>
+                                    CF правила
+                                </label>
+                                <input type="number" id="ruleCF" class="form-input" placeholder="0.9" min="0" max="1" step="0.1" value="0.9">
+                            </div>
+                        </div>
+
+                        <div class="button-row">
+                            <button onclick="addOrEditRule()" class="btn btn-primary">
+                                <i class="fas fa-plus-circle"></i>
+                                <span>Добавить правило</span>
+                            </button>
+                            <button onclick="clearRuleInputs()" class="btn btn-secondary">
+                                <i class="fas fa-broom"></i>
+                                <span>Очистить</span>
+                            </button>
+                            <button onclick="deleteSelectedRule()" class="btn btn-danger">
+                                <i class="fas fa-trash-alt"></i>
+                                <span>Удалить выбранное</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="hint-box">
+                        <div class="hint-header">
+                            <i class="fas fa-lightbulb"></i>
+                            <h4>Формат ввода условий</h4>
+                        </div>
+                        <div class="hint-content">
+                            <div class="examples-grid">
+                                <div class="example-item">
+                                    <code>кашель</code>
+                                    <span>Одиночное условие</span>
+                                </div>
+                                <div class="example-item">
+                                    <code>кашель, насморк</code>
+                                    <span>Кашель И насморк</span>
+                                </div>
+                                <div class="example-item">
+                                    <code>НЕТ кашель</code>
+                                    <span>Отрицание</span>
+                                </div>
+                                <div class="example-item">
+                                    <code>кашель ИЛИ насморк</code>
+                                    <span>Логическое ИЛИ</span>
+                                </div>
+                                <div class="example-item">
+                                    <code>(кашель, температура) ИЛИ головная боль</code>
+                                    <span>Группировка условий</span>
+                                </div>
+                                <div class="example-item">
+                                    <code>кашель,насморк,больное горло</code>
+                                    <span>Несколько условий через запятую (И)</span>
+                                </div>
+                            </div>
+                            <p class="hint-note"><i class="fas fa-info-circle"></i> По умолчанию запятая означает оператор И</p>
+                        </div>
+                    </div>
+
+                    <div class="list-container">
+                        <div class="list-header">
+                            <h3><i class="fas fa-project-diagram"></i> Список правил</h3>
+                            <span class="badge" id="ruleCountBadge">0</span>
+                        </div>
+
+                        <div id="rulesList" class="scrollable-list">
+                            <div class="empty-state">
+                                <i class="fas fa-sitemap"></i>
+                                <h4>Правила отсутствуют</h4>
+                                <p>Создайте первое правило для экспертной системы</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
+                <!-- Вкладка Анализ -->
                 <div id="queryTab" class="tab-content">
-                    <h3>Анализ данных</h3>
-                    <div class="input-group">
-                        <input type="text" id="queryInput" placeholder="Введите данные в новом формате">
-                        <button onclick="executeQuery()">Проанализировать</button>
+                    <div class="section-header">
+                        <h2><i class="fas fa-magnifying-glass-chart"></i> Анализ данных</h2>
+                        <p>Введите данные для логического вывода и анализа</p>
                     </div>
+
+                    <div class="input-card">
+                        <div class="form-row">
+                            <div class="form-group full-width">
+                                <label class="form-label">
+                                    <i class="fas fa-terminal"></i>
+                                    Входные данные
+                                </label>
+                                <div class="input-with-button">
+                                    <input type="text" id="queryInput" class="form-input" placeholder="Пример: кашель, температура, слабость">
+                                    <button onclick="executeQuery()" class="btn btn-primary">
+                                        <i class="fas fa-play"></i>
+                                        <span>Проанализировать</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="hint-box">
-                        <p>Введите характеристики, симптомы, параметры в удобном формате.</p>
-                        <p><strong>Примеры:</strong></p>
-                        <ul>
-                            <li><strong>кашель, температура</strong> - оба симптома</li>
-                            <li><strong>кашель ИЛИ насморк</strong> - любой из симптомов</li>
-                            <li><strong>(кашель, температура) ИЛИ головная боль</strong> - группировка</li>
-                            <li><strong>НЕТ кашель, температура</strong> - нет кашля, но есть температура</li>
-                            <li><strong>кашель,насморк,больное горло</strong> - все три симптома</li>
-                        </ul>
+                        <div class="hint-header">
+                            <i class="fas fa-graduation-cap"></i>
+                            <h4>Примеры использования</h4>
+                        </div>
+                        <div class="hint-content">
+                            <div class="examples-grid">
+                                <div class="example-item">
+                                    <strong>Медицина:</strong>
+                                    <code>кашель, температура</code>
+                                </div>
+                                <div class="example-item">
+                                    <strong>Автосервис:</strong>
+                                    <code>двигатель_шум, вибрация</code>
+                                </div>
+                                <div class="example-item">
+                                    <strong>Выбор ПК:</strong>
+                                    <code>игры, бюджет_выше_100000</code>
+                                </div>
+                                <div class="example-item">
+                                    <strong>Сложный запрос:</strong>
+                                    <code>кашель ИЛИ насморк, температура</code>
+                                </div>
+                                <div class="example-item">
+                                    <strong>Группировка:</strong>
+                                    <code>(кашель, температура) ИЛИ головная боль</code>
+                                </div>
+                                <div class="example-item">
+                                    <strong>Отрицание:</strong>
+                                    <code>НЕТ кашель, температура</code>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div id="queryResults" class="scrollable-list">
-                        <div class="empty-message">Введите данные и нажмите "Проанализировать"</div>
+
+                    <div class="results-container">
+                        <div class="list-header">
+                            <h3><i class="fas fa-chart-line"></i> Результаты анализа</h3>
+                            <span class="status-badge" id="analysisStatus">Ожидание...</span>
+                        </div>
+
+                        <div id="queryResults" class="results-content">
+                            <div class="empty-state">
+                                <i class="fas fa-search"></i>
+                                <h4>Введите данные для анализа</h4>
+                                <p>Используйте поле выше для ввода симптомов, характеристик или параметров</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <footer>
-            <p>Универсальная экспертная система &copy; 2024</p>
-            <p>CF (Certainty Factor) - коэффициент уверенности от 0 до 1</p>
+        <footer class="app-footer">
+            <div class="footer-content">
+                <div class="footer-info">
+                    <div class="footer-logo">
+                        <i class="fas fa-brain"></i>
+                        <span>Универсальная экспертная система</span>
+                    </div>
+                    <p class="copyright">© 2025 Система логического вывода. Все права защищены.</p>
+                </div>
+                <div class="footer-links">
+                    <div class="footer-item">
+                        <i class="fas fa-code"></i>
+                        <span>Метод Шортлиффа</span>
+                    </div>
+                    <div class="footer-item">
+                        <i class="fas fa-shield-alt"></i>
+                        <span>Безопасность данных</span>
+                    </div>
+                    <div class="footer-item">
+                        <i class="fas fa-book"></i>
+                        <span>Документация</span>
+                    </div>
+                </div>
+            </div>
         </footer>
     </div>
 
-    <script src="static/js/app.js"></script>
+    <script src="/static/js/app.js"></script>
 </body>
 </html>
