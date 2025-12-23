@@ -58,6 +58,9 @@
                     <button class="tab-btn" onclick="showTab('rules')">
                         <i class="fas fa-sitemap"></i> Правила
                     </button>
+                    <button class="tab-btn" onclick="showTab('query')">
+                        <i class="fas fa-question-circle"></i> Запрос
+                    </button>
                 </div>
 
                 <div id="factsTab" class="tab-content active">
@@ -123,6 +126,42 @@
                         <button onclick="deleteSelectedRule()" class="btn btn-danger">
                             <i class="fas fa-trash"></i> Удалить выбранное правило
                         </button>
+                    </div>
+                </div>
+
+                <div id="queryTab" class="tab-content">
+                    <h3>Запрос к экспертной системе</h3>
+
+                    <div class="query-section">
+                        <div class="input-group">
+                            <input type="text" id="queryInput" placeholder="Введите факт для проверки (например: Грипп)">
+                            <button onclick="executeQuery()" class="btn btn-primary">
+                                <i class="fas fa-search"></i> Проверить
+                            </button>
+                        </div>
+
+                        <div class="hint-box">
+                            <p><strong>Что можно узнать:</strong></p>
+                            <ul>
+                                <li><strong>Есть ли факт в базе знаний</strong> и с какой уверенностью</li>
+                                <li><strong>Можно ли вывести факт</strong> из существующих правил</li>
+                                <li><strong>Какие правила</strong> позволяют вывести этот факт</li>
+                                <li><strong>Что нужно для вывода</strong> этого факта</li>
+                            </ul>
+                            <p><strong>Примеры запросов:</strong></p>
+                            <ul>
+                                <li><code>Грипп</code> - проверка наличия заболевания</li>
+                                <li><code>Нужен ремонт</code> - проверка необходимости ремонта</li>
+                                <li><code>Инвестировать</code> - проверка рекомендации</li>
+                            </ul>
+                        </div>
+
+                        <div class="query-results">
+                            <h4>Результаты запроса</h4>
+                            <div id="queryResults" class="scrollable-list">
+                                <div class="empty-message">Введите запрос и нажмите "Проверить"</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

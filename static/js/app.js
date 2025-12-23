@@ -3,6 +3,7 @@ let currentRules = [];
 let selectedFact = null;
 let selectedRule = null;
 let currentFilename = null;
+let currentQueryResult = null;
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Expert System loaded');
@@ -27,7 +28,11 @@ function showTab(tabName) {
     }
 
     document.querySelectorAll('.tab-btn').forEach(btn => {
-        if (btn.textContent.includes(tabName === 'facts' ? 'Факты' : 'Правила')) {
+        if (btn.textContent.includes(
+            tabName === 'facts' ? 'Факты' :
+            tabName === 'rules' ? 'Правила' :
+            'Запрос'
+        )) {
             btn.classList.add('active');
         }
     });
@@ -240,19 +245,19 @@ function addOrEditRule() {
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(ruleData)
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                currentRules = data.rules;
-                displayRules();
-                clearRuleInputs();
-                updateCounters();
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Ошибка при сохранении правила');
-        });
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            currentRules = data.rules;
+            displayRules();
+            clearRuleInputs();
+            updateCounters();
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Ошибка при сохранении правила');
+    });
     } catch (error) {
         console.error('Error parsing conditions:', error);
         alert('Ошибка при разборе условий. Проверьте синтаксис.');
@@ -339,6 +344,181 @@ function makeInference() {
         console.error('Error:', error);
         alert('Ошибка при выполнении вывода');
     });
+}
+
+function executeQuery() {
+    const query = document.getElementById('queryInput').value.trim();
+
+    if (!query) {
+        alert('Пожалуйста, введите запрос');
+        return;
+    }
+
+    // Показываем индикатор загрузки
+    const queryResults = document.getElementById('queryResults');
+    queryResults.innerHTML = '<div class="empty-message">Выполняется запрос...</div>';
+
+    fetch('/api/query', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ query: query })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            currentQueryResult = data.result;
+            displayQueryResults(query, data.result);
+        } else {
+            queryResults.innerHTML = `
+                <div class="query-result-item not-found">
+                    <div class="query-result-header">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <div class="query-result-title">Ошибка запроса</div>
+                    </div>
+                    <div class="query-result-details">
+                        <p>${data.error || 'Произошла ошибка при выполнении запроса'}</p>
+                    </div>
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        queryResults.innerHTML = `
+            <div class="query-result-item not-found">
+                <div class="query-result-header">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <div class="query-result-title">Ошибка соединения</div>
+                </div>
+                <div class="query-result-details">
+                    <p>Не удалось выполнить запрос. Проверьте подключение к серверу.</p>
+                </div>
+            </div>
+        `;
+    });
+}
+
+function displayQueryResults(query, result) {
+    const queryResults = document.getElementById('queryResults');
+
+    let html = '';
+
+    if (result.found_directly) {
+        html = `
+            <div class="query-result-item found">
+                <div class="query-result-header">
+                    <i class="fas fa-check-circle"></i>
+                    <div class="query-result-title">Факт найден</div>
+                </div>
+                <div class="query-result-details">
+                    <p>Факт "<strong>${query}</strong>" присутствует в базе знаний.</p>
+                    <p>
+                        <span class="query-result-cf">CF: ${result.direct_cf.toFixed(4)}</span>
+                        ${result.direct_cf >= 0.7 ? '<span style="color: #28a745;">(Высокая уверенность)</span>' :
+                          result.direct_cf >= 0.4 ? '<span style="color: #ffc107;">(Средняя уверенность)</span>' :
+                          '<span style="color: #dc3545;">(Низкая уверенность)</span>'}
+                    </p>
+                </div>
+            </div>
+        `;
+    } else if (result.can_be_inferred) {
+        html = `
+            <div class="query-result-item inferrable">
+                <div class="query-result-header">
+                    <i class="fas fa-brain"></i>
+                    <div class="query-result-title">Факт может быть выведен</div>
+                </div>
+                <div class="query-result-details">
+                    <p>Факт "<strong>${query}</strong>" может быть выведен из правил.</p>
+                    <p>Максимальная возможная уверенность: <span class="query-result-cf">CF: ${result.max_possible_cf.toFixed(4)}</span></p>
+                </div>
+        `;
+
+        if (result.rules_that_can_infer && result.rules_that_can_infer.length > 0) {
+            html += `
+                <div class="query-result-rules">
+                    <h5>Правила для вывода:</h5>
+            `;
+
+            result.rules_that_can_infer.forEach((ruleInfo, index) => {
+                const conditionsText = formatRuleConditionsForQuery(ruleInfo.rule.if);
+                html += `
+                    <div class="rule-path">
+                        <div class="rule-text">
+                            <strong>Правило ${index + 1}:</strong> ЕСЛИ ${conditionsText} ТО ${ruleInfo.rule.then}
+                            <span class="query-result-cf" style="margin-left: 10px;">CF правила: ${ruleInfo.rule.cf.toFixed(2)}</span>
+                        </div>
+                        <div class="rule-calc">
+                            Максимальный CF: min(${ruleInfo.condition_cfs.map(cf => cf.toFixed(2)).join(', ')}) × ${ruleInfo.rule.cf.toFixed(2)} = ${(ruleInfo.max_cf).toFixed(4)}
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `</div>`;
+        }
+
+        if (result.required_facts && result.required_facts.length > 0) {
+            html += `
+                <div class="required-facts">
+                    <h5>Необходимые факты:</h5>
+            `;
+
+            result.required_facts.forEach(factInfo => {
+                const statusClass = factInfo.in_facts ? 'found' : 'missing';
+                const icon = factInfo.in_facts ? 'fa-check-circle' : 'fa-times-circle';
+                const statusText = factInfo.in_facts ? 'Есть в базе' : 'Отсутствует';
+                const cfText = factInfo.in_facts ? `CF: ${factInfo.cf.toFixed(2)}` : 'CF: ?';
+
+                html += `
+                    <div class="fact-status ${statusClass}">
+                        <i class="fas ${icon}"></i>
+                        <div class="fact-name">${factInfo.fact}</div>
+                        <div class="fact-cf-small">${cfText}</div>
+                        <div class="fact-status-text">${statusText}</div>
+                    </div>
+                `;
+            });
+
+            html += `</div>`;
+        }
+
+        html += `</div>`;
+    } else {
+        html = `
+            <div class="query-result-item not-found">
+                <div class="query-result-header">
+                    <i class="fas fa-times-circle"></i>
+                    <div class="query-result-title">Факт не найден</div>
+                </div>
+                <div class="query-result-details">
+                    <p>Факт "<strong>${query}</strong>" не найден в базе знаний и не может быть выведен из правил.</p>
+                    ${result.suggestions && result.suggestions.length > 0 ? `
+                        <div class="query-examples">
+                            <h5>Возможно, вы имели в виду:</h5>
+                            <ul>
+                                ${result.suggestions.map(suggestion => `<li>${suggestion}</li>`).join('')}
+                            </ul>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    queryResults.innerHTML = html;
+}
+
+function formatRuleConditionsForQuery(conditions) {
+    if (!conditions || conditions.length === 0) return '';
+
+    return conditions.map((cond, i) => {
+        let result = cond.fact;
+        if (cond.operator && i < conditions.length - 1) {
+            result += ` ${getOperatorDisplay(cond.operator)}`;
+        }
+        return result;
+    }).join(' ');
 }
 
 function loadKnowledgeBases() {
@@ -599,6 +779,10 @@ document.addEventListener('keypress', function(event) {
                 event.target.id === 'conclusionInput' ||
                 event.target.id === 'ruleCF') {
                 addOrEditRule();
+            }
+        } else if (activeTab && activeTab.id === 'queryTab') {
+            if (event.target.id === 'queryInput') {
+                executeQuery();
             }
         }
     }

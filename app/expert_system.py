@@ -125,6 +125,95 @@ class ExpertSystem:
 
         return inferred
 
+    def query(self, query_fact: str):
+        """Выполнить запрос к экспертной системе"""
+        result = {
+            "query": query_fact,
+            "found_directly": False,
+            "direct_cf": 0.0,
+            "can_be_inferred": False,
+            "max_possible_cf": 0.0,
+            "rules_that_can_infer": [],
+            "required_facts": [],
+            "suggestions": []
+        }
+
+        if query_fact in self.facts:
+            result["found_directly"] = True
+            result["direct_cf"] = self.facts[query_fact]
+
+        rules_that_conclude = []
+        for rule in self.rules:
+            if rule["then"] == query_fact:
+                rules_that_conclude.append(rule)
+
+        if rules_that_conclude:
+            result["can_be_inferred"] = True
+
+            for rule in rules_that_conclude:
+                condition_cfs = []
+                required_facts_for_rule = []
+
+                for condition in rule["if"]:
+                    fact = condition.get("fact", "")
+                    operator = condition.get("operator", "").upper()
+
+                    if fact in self.facts:
+                        fact_cf = self.facts[fact]
+                        if operator == "NOT":
+                            condition_cf = 1.0 - fact_cf
+                        else:
+                            condition_cf = fact_cf
+                        required_facts_for_rule.append({
+                            "fact": fact,
+                            "in_facts": True,
+                            "cf": fact_cf,
+                            "required": True
+                        })
+                    else:
+                        condition_cf = 1.0
+                        required_facts_for_rule.append({
+                            "fact": fact,
+                            "in_facts": False,
+                            "cf": 0.0,
+                            "required": True
+                        })
+
+                    condition_cfs.append(condition_cf)
+
+                if condition_cfs:
+                    condition_cf = min(condition_cfs) if condition_cfs else 0.0
+                else:
+                    condition_cf = 0.0
+
+                max_cf_for_rule = condition_cf * rule["cf"]
+
+                result["rules_that_can_infer"].append({
+                    "rule": rule,
+                    "condition_cfs": condition_cfs,
+                    "max_cf": max_cf_for_rule
+                })
+
+                for fact_info in required_facts_for_rule:
+                    if not any(f["fact"] == fact_info["fact"] for f in result["required_facts"]):
+                        result["required_facts"].append(fact_info)
+
+            if result["rules_that_can_infer"]:
+                result["max_possible_cf"] = max(
+                    rule_info["max_cf"]
+                    for rule_info in result["rules_that_can_infer"]
+                )
+
+        if not result["found_directly"] and not result["can_be_inferred"]:
+            query_lower = query_fact.lower()
+            for fact in self.facts.keys():
+                if query_lower in fact.lower() or fact.lower() in query_lower:
+                    result["suggestions"].append(fact)
+
+            result["suggestions"] = result["suggestions"][:5]
+
+        return result
+
     def load_from_dict(self, data: dict):
         """Загрузить состояние системы из словаря"""
         self.facts = data.get("facts", {})

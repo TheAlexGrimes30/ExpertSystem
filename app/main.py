@@ -34,9 +34,11 @@ app.add_middleware(
 kb_manager = KnowledgeBaseManager(str(BASE_DIR / "knowledge_base"))
 expert_system = ExpertSystem()
 
+
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
+
 
 @app.get("/api/knowledge-bases")
 async def get_knowledge_bases():
@@ -45,6 +47,7 @@ async def get_knowledge_bases():
         return {"success": True, "files": files}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/api/knowledge-base/{filename}")
 async def load_knowledge_base(filename: str):
@@ -60,6 +63,7 @@ async def load_knowledge_base(filename: str):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+
 @app.post("/api/knowledge-base/{filename}")
 async def save_knowledge_base(filename: str, data: dict):
     try:
@@ -67,6 +71,7 @@ async def save_knowledge_base(filename: str, data: dict):
         return {"success": True}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
 
 @app.delete("/api/knowledge-base/{filename}")
 async def delete_knowledge_base(filename: str):
@@ -76,6 +81,7 @@ async def delete_knowledge_base(filename: str):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+
 @app.post("/api/fact")
 async def add_fact(fact_data: dict):
     try:
@@ -83,6 +89,7 @@ async def add_fact(fact_data: dict):
         return {"success": True, "facts": expert_system.facts}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
 
 @app.delete("/api/fact/{fact:path}")
 async def delete_fact(fact: str):
@@ -93,6 +100,7 @@ async def delete_fact(fact: str):
         return {"success": True, "facts": expert_system.facts}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
 
 @app.post("/api/rule")
 async def add_rule(rule_data: dict):
@@ -106,6 +114,7 @@ async def add_rule(rule_data: dict):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+
 @app.delete("/api/rule/{index}")
 async def delete_rule(index: int):
     try:
@@ -113,6 +122,7 @@ async def delete_rule(index: int):
         return {"success": True, "rules": expert_system.rules}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
 
 @app.post("/api/infer")
 async def make_inference():
@@ -126,6 +136,31 @@ async def make_inference():
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+
+@app.post("/api/query")
+async def make_query(query_data: dict):
+    try:
+        query = query_data.get("query", "").strip()
+
+        if not query:
+            return {
+                "success": False,
+                "error": "Пустой запрос"
+            }
+
+        result = expert_system.query(query)
+
+        return {
+            "success": True,
+            "result": result
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
 @app.get("/api/current-state")
 async def get_current_state():
     return {
@@ -134,9 +169,11 @@ async def get_current_state():
         "rules": expert_system.rules
     }
 
+
 @app.get("/api/health")
 async def health_check():
     return {"status": "ok", "service": "expert-system"}
+
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
