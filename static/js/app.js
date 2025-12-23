@@ -245,7 +245,6 @@ function formatConditionsForInput(conditions) {
         }
     }
 
-    // Удаляем последний оператор, если он есть
     const lastItem = result[result.length - 1];
     if (lastItem === 'И' || lastItem === 'ИЛИ') {
         result.pop();

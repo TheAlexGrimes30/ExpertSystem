@@ -1,8 +1,5 @@
-import json
-import os
-from pathlib import Path
-from typing import List, Dict, Tuple, Optional
-import re
+from typing import List, Dict
+
 
 
 class ExpertSystem:
@@ -27,11 +24,9 @@ class ExpertSystem:
         if not conditions_str:
             return []
 
-        # Нормализуем строку
         conditions_str = conditions_str.replace('(', ' ( ').replace(')', ' ) ')
         conditions_str = conditions_str.replace(',', ' , ')
 
-        # Разбиваем на токены
         tokens = [t.strip() for t in conditions_str.split() if t.strip()]
 
         return self._parse_tokens(tokens)
@@ -44,7 +39,6 @@ class ExpertSystem:
         while i < len(tokens):
             token = tokens[i]
 
-            # Обработка оператора NOT
             if token.upper() == 'НЕТ':
                 if i + 1 < len(tokens):
                     next_token = tokens[i + 1]
@@ -71,21 +65,18 @@ class ExpertSystem:
                     i += 1
                 continue
 
-            # Обработка оператора OR
             if token.upper() == 'ИЛИ':
                 if result:
                     result[-1]["operator"] = "OR"
                 i += 1
                 continue
 
-            # Обработка оператора AND
             if token.upper() == 'И':
                 if result:
                     result[-1]["operator"] = "AND"
                 i += 1
                 continue
 
-            # Обработка скобок
             if token == '(':
                 depth = 1
                 j = i + 1
@@ -101,7 +92,6 @@ class ExpertSystem:
                         group_tokens.append(tokens[j])
                     j += 1
 
-                # Парсим содержимое группы
                 if group_tokens:
                     group_conditions = self._parse_tokens(group_tokens)
 
@@ -128,14 +118,12 @@ class ExpertSystem:
                 i = j
                 continue
 
-            # Обработка запятой (неявный AND)
             if token == ',':
                 if result and result[-1].get("operator", "") == "":
                     result[-1]["operator"] = "AND"
                 i += 1
                 continue
 
-            # Обычный факт
             if token not in [')']:
                 if i > 0 and tokens[i - 1] == ',' and result:
                     result[-1]["operator"] = "AND"
@@ -148,7 +136,6 @@ class ExpertSystem:
 
             i += 1
 
-        # Устанавливаем AND по умолчанию
         for i in range(len(result) - 1):
             if result[i].get("operator", "") == "":
                 result[i]["operator"] = "AND"
@@ -161,10 +148,8 @@ class ExpertSystem:
             raise ValueError("Коэффициент уверенности должен быть от 0 до 1")
 
         if isinstance(conditions, str):
-            # Если передали строку - парсим как обычно
             conditions = self.parse_conditions_string(conditions)
         elif isinstance(conditions, list):
-            # ИСПРАВЛЕНИЕ ДЛЯ JSON: ["A", "B"] → A И B
             parsed_conditions = []
             for i, condition in enumerate(conditions):
                 if isinstance(condition, str):
@@ -270,7 +255,6 @@ class ExpertSystem:
 
     def query(self, symptoms_input: str) -> Dict:
         """Выполнить анализ на основе введенных данных"""
-        # Парсим входные данные
         parsed_conditions = self.parse_conditions_string(symptoms_input)
 
         if not parsed_conditions:
@@ -288,7 +272,6 @@ class ExpertSystem:
             "partial_matches": None
         }
 
-        # Сопоставляем факты с базой знаний
         matched_items = []
         all_fact_names = list(self.facts.keys())
 
@@ -304,16 +287,13 @@ class ExpertSystem:
 
         result["matched_items"] = matched_items
 
-        # Ключевое исправление: проверяем правила с учетом структуры запроса
         possible_conclusions = {}
 
         for rule in self.rules:
-            # НОВАЯ ЛОГИКА: проверяем полное соответствие структуры
             if self._check_rule_structure_match(rule, parsed_conditions, matched_items):
                 conclusion_name = rule["then"]
                 rule_cf = rule["cf"]
 
-                # Рассчитываем CF условий
                 condition_cf = self._calculate_rule_cf(rule, matched_items)
 
                 if condition_cf > 0:
@@ -333,13 +313,11 @@ class ExpertSystem:
                             "confidence": self._get_confidence_level(conclusion_cf)
                         }
 
-        # Добавляем выводы в результат
         for conclusion_data in possible_conclusions.values():
             result["conclusions"].append(conclusion_data)
 
         result["conclusions"].sort(key=lambda x: x["cf"], reverse=True)
 
-        # Если нет точных выводов, ищем частичные совпадения
         if not result["conclusions"]:
             partial_rules = self._find_partial_matches(matched_items, parsed_conditions)
             if partial_rules:
@@ -354,13 +332,10 @@ class ExpertSystem:
         """Проверить полное соответствие структуры правила и запроса"""
         rule_conditions = rule["if"]
 
-        # Если разное количество условий - не подходит
         if len(rule_conditions) != len(query_conditions):
             return False
 
-        # Проверяем каждое условие
         for rule_cond, query_cond in zip(rule_conditions, query_conditions):
-            # Проверяем факты
             rule_fact = rule_cond.get("fact", "")
             query_fact = query_cond.get("fact", "")
 
@@ -373,18 +348,15 @@ class ExpertSystem:
                 if rule_fact != query_fact:
                     return False
 
-            # Проверяем операторы (ключевое исправление!)
             rule_operator = rule_cond.get("operator", "").upper()
             query_operator = query_cond.get("operator", "").upper()
 
-            # Пустой оператор и "AND" считаем эквивалентными
             rule_op = "AND" if rule_operator in ["", "AND"] else rule_operator
             query_op = "AND" if query_operator in ["", "AND"] else query_operator
 
             if rule_op != query_op:
                 return False
 
-        # Дополнительно проверяем, что все факты из правила есть в matched_items
         for condition in rule_conditions:
             fact_name = condition.get("fact", "")
             operator = condition.get("operator", "").upper()
@@ -403,14 +375,11 @@ class ExpertSystem:
         """Сопоставить факт с базой знаний"""
         matched = False
 
-        # Нормализуем входной факт для поиска
         input_normalized = ' '.join(fact_name.lower().replace('_', ' ').split())
 
         for stored_fact in all_fact_names:
-            # Нормализуем сохраненный факт
             stored_normalized = ' '.join(stored_fact.lower().replace('_', ' ').split())
 
-            # Проверяем точное совпадение после нормализации
             if input_normalized == stored_normalized:
                 cf = self.facts[stored_fact]
                 if operator == "NOT":
@@ -435,16 +404,13 @@ class ExpertSystem:
 
     def _facts_match(self, input_fact: str, stored_fact: str) -> bool:
         """Проверить, соответствует ли входной факт сохраненному факту"""
-        # Нормализуем оба факта: заменяем подчеркивания на пробелы, приводим к нижнему регистру
         input_normalized = ' '.join(input_fact.lower().replace('_', ' ').split())
         stored_normalized = ' '.join(stored_fact.lower().replace('_', ' ').split())
 
-        # Проверяем точное совпадение после нормализации
         return input_normalized == stored_normalized
 
     def _fact_in_matched(self, fact_name: str, operator: str, matched_items: List[Dict]) -> bool:
         """Проверить, есть ли факт в сопоставленных элементах"""
-        # Нормализуем факт для сравнения
         fact_normalized = ' '.join(fact_name.lower().replace('_', ' ').split())
 
         for item in matched_items:
@@ -452,7 +418,6 @@ class ExpertSystem:
             if item_fact is None:
                 continue
 
-            # Нормализуем факт из matched_items
             item_fact_normalized = ' '.join(item_fact.lower().replace('_', ' ').split())
 
             if item_fact_normalized == fact_normalized:
@@ -505,14 +470,12 @@ class ExpertSystem:
 
     def _get_matched_cf(self, fact_name: str, operator: str, matched_items: List[Dict]) -> float:
         """Получить CF из сопоставленных элементов"""
-        # Нормализуем факт для сравнения
         fact_normalized = ' '.join(fact_name.lower().replace('_', ' ').split())
 
         for item in matched_items:
             if item["matched_fact"] is None:
                 continue
 
-            # Нормализуем факт из matched_items
             item_fact_normalized = ' '.join(item["matched_fact"].lower().replace('_', ' ').split())
 
             if item_fact_normalized == fact_normalized:
@@ -584,7 +547,6 @@ class ExpertSystem:
             total_conditions = 0
             missing = []
 
-            # Проверяем только факты, игнорируя операторы для частичных совпадений
             for condition in rule["if"]:
                 fact = condition.get("fact", "")
                 operator = condition.get("operator", "").upper()
@@ -632,7 +594,6 @@ class ExpertSystem:
         self.facts = data.get("facts", {})
         self.rules = []
 
-        # Преобразуем правила из формата JSON
         for rule in data.get("rules", []):
             self.add_rule(rule["if"], rule["then"], rule["cf"])
 

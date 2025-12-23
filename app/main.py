@@ -21,7 +21,6 @@ app = FastAPI(
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Создаем необходимые директории
 static_dir = BASE_DIR / "static"
 css_dir = static_dir / "css"
 js_dir = static_dir / "js"
@@ -31,22 +30,18 @@ knowledge_base_dir = BASE_DIR / "knowledge_base"
 for directory in [css_dir, js_dir, templates_dir, knowledge_base_dir]:
     directory.mkdir(parents=True, exist_ok=True)
 
-# Монтируем статические файлы
 app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 templates = Jinja2Templates(directory=str(templates_dir))
-
-# Инициализируем экспертную систему
 expert_system = ExpertSystem()
 
 
-# Pydantic модели для валидации данных
 class FactData(BaseModel):
     fact: str
     cf: float
 
 
 class RuleData(BaseModel):
-    conditions: str  # Строка условий для парсинга
+    conditions: str
     conclusion: str
     cf: float = 0.5
 
@@ -55,7 +50,6 @@ class QueryData(BaseModel):
     query: str
 
 
-# Вспомогательные функции для работы с файлами
 def list_knowledge_bases() -> List[str]:
     """Получить список файлов баз знаний"""
     files = []
@@ -274,7 +268,6 @@ async def get_current_state():
     })
 
 
-# Эндпоинт для очистки всей базы
 @app.post("/api/clear-all")
 async def clear_all():
     """Очистить все факты и правила"""
@@ -292,16 +285,7 @@ async def clear_all():
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
 
-    print("=" * 60)
-    print("УНИВЕРСАЛЬНАЯ ЭКСПЕРТНАЯ СИСТЕМА")
-    print("=" * 60)
-    print("Система логического вывода на основе метода Шортлиффа")
-    print("=" * 60)
-    print("Исправленная версия с правильной логикой AND/OR")
-    print("=" * 60)
     print(f"Сервер запущен: http://localhost:{port}")
-    print("Для остановки нажмите Ctrl+C")
-    print("=" * 60)
 
     uvicorn.run(
         "main:app",
