@@ -16,27 +16,18 @@ function showTab(tabName) {
     document.querySelectorAll('.tab-content').forEach(tab => {
         tab.classList.remove('active');
     });
-
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.classList.remove('active');
     });
 
-    const tabElement = document.getElementById(tabName + 'Tab');
-    if (tabElement) {
-        tabElement.classList.add('active');
-    }
-
-    const tabBtn = Array.from(document.querySelectorAll('.tab-btn')).find(btn =>
-        btn.textContent.includes(
-            tabName === 'facts' ? 'Факты' :
-            tabName === 'rules' ? 'Правила' :
-            'Диагностика'
-        )
-    );
-
-    if (tabBtn) {
-        tabBtn.classList.add('active');
-    }
+    document.getElementById(tabName + 'Tab').classList.add('active');
+    document.querySelectorAll('.tab-btn').forEach((btn, index) => {
+        if ((tabName === 'facts' && btn.textContent.includes('Факты')) ||
+            (tabName === 'rules' && btn.textContent.includes('Правила')) ||
+            (tabName === 'query' && btn.textContent.includes('Анализ'))) {
+            btn.classList.add('active');
+        }
+    });
 }
 
 function addOrEditFact() {
@@ -53,10 +44,7 @@ function addOrEditFact() {
         return;
     }
 
-    const factData = {
-        fact: fact,
-        cf: cf
-    };
+    const factData = { fact: fact, cf: cf };
 
     fetch('/api/fact', {
         method: 'POST',
@@ -137,52 +125,39 @@ function parseConditions(rawConditions) {
     while (i < rawConditions.length) {
         const rawCondition = rawConditions[i].trim();
 
-        // Пропускаем пустые
         if (!rawCondition) {
             i++;
             continue;
         }
 
-        // Проверяем операторы
         if (operatorMap[rawCondition.toUpperCase()]) {
             if (conditions.length > 0) {
-                // Добавляем оператор к последнему условию
                 conditions[conditions.length - 1].operator = operatorMap[rawCondition.toUpperCase()];
             }
             i++;
             continue;
         }
 
-        // Обработка скобок
         if (rawCondition.startsWith('(')) {
-            // Нашли начало группы
             let groupText = rawCondition;
             let groupDepth = 1;
             let j = i;
 
-            // Собираем всю группу
             while (j < rawConditions.length && groupDepth > 0) {
                 if (j > i) {
                     groupText += ', ' + rawConditions[j].trim();
                 }
-
-                // Считаем скобки
                 const token = rawConditions[j].trim();
                 const openCount = (token.match(/\(/g) || []).length;
                 const closeCount = (token.match(/\)/g) || []).length;
                 groupDepth += openCount - closeCount;
-
                 j++;
             }
 
-            // Устанавливаем i на конец группы
             i = j - 1;
-
-            // Убираем скобки и разбиваем на факты
             const cleanGroup = groupText.replace(/[()]/g, '').trim();
             const groupItems = cleanGroup.split(',').map(f => f.trim()).filter(f => f);
 
-            // Разделяем факты и операторы внутри группы
             const groupFacts = [];
             let groupOperator = '';
 
@@ -194,17 +169,15 @@ function parseConditions(rawConditions) {
                 }
             }
 
-            // Определяем оператор после группы
             let operatorAfterGroup = '';
             if (i + 1 < rawConditions.length) {
                 const nextToken = rawConditions[i + 1]?.trim().toUpperCase();
                 if (operatorMap[nextToken]) {
                     operatorAfterGroup = operatorMap[nextToken];
-                    i++; // Пропускаем оператор
+                    i++;
                 }
             }
 
-            // Добавляем группу
             conditions.push({
                 fact: groupFacts,
                 operator: groupOperator || operatorAfterGroup,
@@ -215,11 +188,8 @@ function parseConditions(rawConditions) {
             continue;
         }
 
-        // Обычный факт
         let fact = rawCondition;
         let operator = '';
-
-        // Проверяем, есть ли оператор в конце
         const words = rawCondition.split(' ');
         const lastWord = words[words.length - 1].toUpperCase();
 
@@ -227,13 +197,11 @@ function parseConditions(rawConditions) {
             operator = operatorMap[lastWord];
             fact = words.slice(0, -1).join(' ').trim();
         } else if (i < rawConditions.length - 1) {
-            // Проверяем следующий токен на оператор
             const nextToken = rawConditions[i + 1]?.trim().toUpperCase();
             if (operatorMap[nextToken]) {
                 operator = operatorMap[nextToken];
-                i++; // Пропускаем оператор
+                i++;
             } else {
-                // По умолчанию AND между фактами
                 operator = 'AND';
             }
         }
@@ -247,7 +215,6 @@ function parseConditions(rawConditions) {
         i++;
     }
 
-    // Убираем пустые операторы у последнего условия
     if (conditions.length > 0) {
         conditions[conditions.length - 1].operator = '';
     }
@@ -287,8 +254,6 @@ function addOrEditRule() {
             conclusion: conclusion,
             cf: cf
         };
-
-        console.log('Отправляем правило:', ruleData);
 
         fetch('/api/rule', {
             method: 'POST',
@@ -360,9 +325,7 @@ function selectRule(index, element) {
     element.classList.add('selected');
 
     const rule = currentRules[index];
-
-    const conditionsText = formatConditionsForInput(rule.if);
-    document.getElementById('conditionsInput').value = conditionsText;
+    document.getElementById('conditionsInput').value = formatConditionsForInput(rule.if);
     document.getElementById('conclusionInput').value = rule.then;
     document.getElementById('ruleCF').value = rule.cf;
 }
@@ -376,29 +339,20 @@ function formatConditionsForInput(conditions) {
         const cond = conditions[i];
 
         if (cond.is_group && Array.isArray(cond.fact)) {
-            // Группа условий
             let groupText = '(' + cond.fact.join(', ');
-
-            // Добавляем оператор внутри группы, если есть
             if (cond.operator && cond.operator !== 'AND') {
                 groupText += ' ' + getOperatorDisplay(cond.operator);
             }
-
             groupText += ')';
             result.push(groupText);
         } else {
-            // Одиночный факт
             let factText = cond.fact;
-
-            // Добавляем оператор к факту, если есть (кроме AND)
             if (cond.operator && cond.operator !== 'AND') {
                 factText += ' ' + getOperatorDisplay(cond.operator);
             }
-
             result.push(factText);
         }
 
-        // Добавляем оператор между условиями (кроме последнего)
         if (i < conditions.length - 1) {
             const nextCond = conditions[i + 1];
             if (nextCond.operator === 'AND' || (!nextCond.operator && i < conditions.length - 2)) {
@@ -414,60 +368,16 @@ function formatConditionsForInput(conditions) {
     return result.join(', ');
 }
 
-function formatRuleConditions(conditions) {
-    if (!conditions || conditions.length === 0) return '';
-
-    let result = '';
-
-    for (let i = 0; i < conditions.length; i++) {
-        const cond = conditions[i];
-
-        if (cond.is_group && Array.isArray(cond.fact)) {
-            // Группа условий
-            result += `(<strong>${cond.fact.join(', ')}</strong>`;
-
-            // Добавляем оператор внутри группы
-            if (cond.operator && cond.operator !== 'AND') {
-                result += ` <span class="rule-operator-badge ${cond.operator.toLowerCase()}">${getOperatorDisplay(cond.operator)}</span>`;
-            }
-
-            result += ')';
-        } else {
-            // Одиночный факт
-            result += `<strong>${cond.fact}</strong>`;
-
-            // Добавляем оператор к факту
-            if (cond.operator && cond.operator !== 'AND') {
-                result += ` <span class="rule-operator-badge ${cond.operator.toLowerCase()}">${getOperatorDisplay(cond.operator)}</span>`;
-            }
-        }
-
-        // Добавляем оператор между условиями
-        if (i < conditions.length - 1) {
-            const nextCond = conditions[i + 1];
-            if (nextCond.operator === 'AND' || (!nextCond.operator && i < conditions.length - 2)) {
-                result += ` <span class="rule-operator-badge and">И</span> `;
-            } else if (nextCond.operator === 'OR') {
-                result += ` <span class="rule-operator-badge or">ИЛИ</span> `;
-            } else if (nextCond.operator === 'NOT') {
-                result += ` <span class="rule-operator-badge not">НЕТ</span> `;
-            }
-        }
-    }
-
-    return result;
-}
-
 function executeQuery() {
     const query = document.getElementById('queryInput').value.trim();
 
     if (!query) {
-        alert('Пожалуйста, введите симптомы через запятую');
+        alert('Пожалуйста, введите данные для анализа');
         return;
     }
 
     const queryResults = document.getElementById('queryResults');
-    queryResults.innerHTML = '<div class="empty-message">Выполняется диагностика...</div>';
+    queryResults.innerHTML = '<div class="empty-message">Выполняется анализ...</div>';
 
     fetch('/api/query', {
         method: 'POST',
@@ -480,191 +390,99 @@ function executeQuery() {
             displayQueryResults(query, data.result);
         } else {
             queryResults.innerHTML = `
-                <div class="query-result-item not-found">
-                    <div class="query-result-header">
-                        <i class="fas fa-exclamation-circle"></i>
-                        <div class="query-result-title">Ошибка</div>
-                    </div>
-                    <div class="query-result-details">
-                        <p>${data.error || 'Произошла ошибка при выполнении запроса'}</p>
-                    </div>
+                <div class="empty-message" style="color: #e74c3c;">
+                    ${data.error || 'Произошла ошибка при выполнении запроса'}
                 </div>
             `;
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        queryResults.innerHTML = `
-            <div class="query-result-item not-found">
-                <div class="query-result-header">
-                    <i class="fas fa-exclamation-circle"></i>
-                    <div class="query-result-title">Ошибка соединения</div>
-                </div>
-                <div class="query-result-details">
-                    <p>Не удалось выполнить диагностику. Проверьте подключение к серверу.</p>
-                </div>
-            </div>
-        `;
+        queryResults.innerHTML = '<div class="empty-message" style="color: #e74c3c;">Ошибка соединения с сервером</div>';
     });
 }
 
 function displayQueryResults(query, result) {
     const queryResults = document.getElementById('queryResults');
+    let html = `<h3>Результаты анализа</h3>`;
+    html += `<p><strong>Введенные данные:</strong> ${result.query}</p>`;
 
-    let html = `
-        <div class="diagnosis-header">
-            <div class="query-result-header">
-                <i class="fas fa-stethoscope"></i>
-                <div class="query-result-title">Анализ симптомов</div>
-            </div>
-            <div class="symptoms-input">
-                <p><strong>Введенные симптомы:</strong> ${result.query}</p>
-            </div>
-        </div>
-    `;
-
-    // Показываем сопоставленные симптомы
-    if (result.matched_symptoms && result.matched_symptoms.length > 0) {
-        html += '<div class="symptoms-analysis">';
-        html += '<h5><i class="fas fa-check-circle"></i> Распознанные симптомы:</h5>';
-        html += '<div class="symptoms-list">';
-
-        result.matched_symptoms.forEach((symptom, index) => {
-            if (symptom.matched_fact) {
+    if (result.matched_items && result.matched_items.length > 0) {
+        html += '<div style="margin: 15px 0;">';
+        html += '<h4>Распознанные элементы:</h4>';
+        result.matched_items.forEach((item, index) => {
+            if (item.matched_fact) {
                 html += `
-                    <div class="symptom-item matched">
-                        <i class="fas fa-check"></i>
-                        <span class="symptom-name">${symptom.input} → ${symptom.matched_fact}</span>
-                        <span class="symptom-cf">CF: ${symptom.cf.toFixed(2)}</span>
+                    <div style="padding: 8px; margin-bottom: 5px; background: #d4edda; border-radius: 4px; display: flex; justify-content: space-between;">
+                        <span>${item.input} → ${item.matched_fact}</span>
+                        <span style="font-weight: bold;">CF: ${item.cf.toFixed(2)}</span>
                     </div>
                 `;
             } else {
                 html += `
-                    <div class="symptom-item not-found">
-                        <i class="fas fa-times"></i>
-                        <span class="symptom-name">${symptom.input}</span>
-                        <span class="symptom-cf">Не найден в базе</span>
+                    <div style="padding: 8px; margin-bottom: 5px; background: #f8d7da; border-radius: 4px;">
+                        ${item.input} (не найден в базе)
                     </div>
                 `;
             }
         });
-
-        html += '</div></div>';
+        html += '</div>';
     }
 
-    // Показываем диагнозы
-    if (result.diagnoses && result.diagnoses.length > 0) {
-        html += '<div class="diagnoses-section">';
-        html += '<h5><i class="fas fa-diagnoses"></i> Возможные диагнозы:</h5>';
-
-        result.diagnoses.forEach((diagnosis, index) => {
-            const rank = index + 1;
-            const confidenceClass = getConfidenceClass(diagnosis.cf);
-
+    if (result.conclusions && result.conclusions.length > 0) {
+        html += '<div style="margin-top: 20px;">';
+        html += '<h4>Возможные выводы:</h4>';
+        result.conclusions.forEach((conclusion, index) => {
+            const confidenceClass = getConfidenceClass(conclusion.cf);
             html += `
-                <div class="diagnosis-card ${confidenceClass}">
-                    <div class="diagnosis-rank">#${rank}</div>
-                    <div class="diagnosis-content">
-                        <div class="diagnosis-main">
-                            <h5 class="diagnosis-name">
-                                <i class="fas fa-file-medical-alt"></i>
-                                ${diagnosis.name}
-                            </h5>
-                            <div class="diagnosis-confidence">
-                                <span class="confidence-badge ${confidenceClass}">
-                                    <i class="fas fa-${getConfidenceIcon(diagnosis.cf)}"></i>
-                                    ${diagnosis.confidence} уверенность
-                                </span>
-                                <span class="cf-value">CF: ${diagnosis.cf.toFixed(4)}</span>
-                            </div>
-                        </div>
-
-                        <div class="diagnosis-details">
-                            <div class="detail-row">
-                                <strong>На основании:</strong>
-                                <span class="conditions-list">${formatConditionsForDisplay(diagnosis.conditions)}</span>
-                            </div>
-                            <div class="detail-row">
-                                <strong>Расчет:</strong>
-                                <code class="cf-calculation">
-                                    min(${diagnosis.min_condition_cf.toFixed(2)}) × ${diagnosis.rule_cf.toFixed(2)} = ${diagnosis.cf.toFixed(4)}
-                                </code>
-                            </div>
-                            ${diagnosis.matched_conditions && diagnosis.matched_conditions.length > 0 ? `
-                                <div class="detail-row">
-                                    <strong>Совпавшие симптомы:</strong>
-                                    <span class="matched-symptoms">${diagnosis.matched_conditions.join(', ')}</span>
-                                </div>
-                            ` : ''}
-                        </div>
+                <div class="conclusion-card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h4 style="margin: 0; color: #2c3e50;">${conclusion.name}</h4>
+                        <span class="confidence-badge ${confidenceClass}">${conclusion.confidence} уверенность</span>
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <strong>Уверенность:</strong> ${conclusion.cf.toFixed(4)}
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <strong>На основании:</strong> ${conclusion.conditions.join(' И ')}
+                    </div>
+                    <div style="font-family: monospace; background: #f8f9fa; padding: 8px; border-radius: 4px;">
+                        min(${conclusion.min_condition_cf.toFixed(2)}) × ${conclusion.rule_cf.toFixed(2)} = ${conclusion.cf.toFixed(4)}
                     </div>
                 </div>
             `;
         });
-
         html += '</div>';
     } else {
-        // Нет диагнозов
-        html += `
-            <div class="no-diagnosis">
-                <div class="query-result-item not-found">
-                    <div class="query-result-header">
-                        <i class="fas fa-question-circle"></i>
-                        <div class="query-result-title">Диагноз не найден</div>
-                    </div>
-                    <div class="query-result-details">
-                        <p>По указанным симптомам не удалось поставить точный диагноз.</p>
-        `;
+        html += '<div class="empty-message">Точных выводов не найдено</div>';
 
-        if (result.no_diagnosis_info && result.no_diagnosis_info.almost_rules) {
-            html += `
-                <div class="almost-diagnoses">
-                    <p><strong>Близкие диагнозы:</strong></p>
-            `;
-
-            result.no_diagnosis_info.almost_rules.forEach((rule, index) => {
+        if (result.partial_matches && result.partial_matches.partial_rules) {
+            html += '<div style="margin-top: 20px;">';
+            html += '<h4>Близкие правила:</h4>';
+            result.partial_matches.partial_rules.forEach((rule, index) => {
                 const percent = Math.round((rule.matched / rule.total) * 100);
                 html += `
-                    <div class="almost-rule">
-                        <div class="almost-diagnosis">${rule.diagnosis}</div>
-                        <div class="almost-progress">
-                            <div class="progress-bar">
-                                <div class="progress-fill" style="width: ${percent}%"></div>
+                    <div style="margin-bottom: 15px; padding: 12px; border: 1px solid #ddd; border-radius: 6px; border-left: 3px solid #ffc107;">
+                        <div style="font-weight: bold; margin-bottom: 5px; color: #2c3e50;">${rule.conclusion}</div>
+                        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 8px;">
+                            <div style="flex: 1; height: 10px; background: #e9ecef; border-radius: 5px; overflow: hidden;">
+                                <div style="height: 100%; background: linear-gradient(90deg, #ffc107, #ff9800); width: ${percent}%;"></div>
                             </div>
-                            <span class="progress-text">${rule.matched}/${rule.total} условий (${percent}%)</span>
+                            <span style="font-size: 0.9em; color: #6c757d; min-width: 100px;">${rule.matched}/${rule.total} условий (${percent}%)</span>
                         </div>
                         ${rule.missing && rule.missing.length > 0 ? `
-                            <div class="missing-conditions">
+                            <div style="padding: 8px; background: #f8f9fa; border-radius: 4px; font-size: 0.9em; color: #dc3545;">
                                 <strong>Не хватает:</strong> ${rule.missing.join(', ')}
                             </div>
                         ` : ''}
                     </div>
                 `;
             });
-
             html += '</div>';
         }
-
-        html += `
-                    </div>
-                </div>
-            </div>
-        `;
     }
 
     queryResults.innerHTML = html;
-}
-
-function formatConditionsForDisplay(conditionsArray) {
-    if (!conditionsArray || !Array.isArray(conditionsArray)) return '';
-
-    return conditionsArray.map(condition => {
-        // Проверяем, содержит ли условие группу
-        if (condition.includes('группа: ')) {
-            return condition.replace('группа: ', '');
-        }
-        return condition;
-    }).join(' И ');
 }
 
 function getConfidenceClass(cf) {
@@ -673,14 +491,6 @@ function getConfidenceClass(cf) {
     if (cf >= 0.4) return 'medium';
     if (cf >= 0.2) return 'low';
     return 'very-low';
-}
-
-function getConfidenceIcon(cf) {
-    if (cf >= 0.8) return 'check-circle';
-    if (cf >= 0.6) return 'check';
-    if (cf >= 0.4) return 'info-circle';
-    if (cf >= 0.2) return 'exclamation-triangle';
-    return 'times-circle';
 }
 
 function loadKnowledgeBases() {
@@ -743,17 +553,10 @@ function loadSelectedBase() {
 }
 
 function saveCurrentBase() {
-    const filename = prompt('Введите имя для новой базы знаний:',
-                           currentFilename || 'моя_база_знаний');
+    const filename = prompt('Введите имя для новой базы знаний:', currentFilename || 'моя_база_знаний');
+    if (!filename) return;
 
-    if (!filename) {
-        return;
-    }
-
-    const data = {
-        facts: currentFacts,
-        rules: currentRules
-    };
+    const data = { facts: currentFacts, rules: currentRules };
 
     fetch(`/api/knowledge-base/${filename}`, {
         method: 'POST',
@@ -818,7 +621,9 @@ function displayFacts() {
         factItem.innerHTML = `
             <div class="fact-content">
                 <div class="fact-text">${fact}</div>
-                <div class="fact-cf">CF: ${cf.toFixed(2)}</div>
+                <div style="background: #667eea; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.85em; font-weight: 500;">
+                    CF: ${cf.toFixed(2)}
+                </div>
             </div>
         `;
         factsList.appendChild(factItem);
@@ -839,26 +644,30 @@ function displayRules() {
         ruleItem.className = 'rule-item';
         ruleItem.onclick = () => selectRule(index, ruleItem);
 
-        const operatorCounts = { AND: 0, OR: 0, NOT: 0 };
-        rule.if.forEach(cond => {
-            if (cond.operator) operatorCounts[cond.operator]++;
+        let conditionsText = '';
+        rule.if.forEach((cond, i) => {
+            if (cond.is_group && Array.isArray(cond.fact)) {
+                conditionsText += `(${cond.fact.join(', ')})`;
+            } else {
+                conditionsText += cond.fact;
+            }
+
+            if (cond.operator) {
+                conditionsText += ` ${getOperatorDisplay(cond.operator)}`;
+            }
+
+            if (i < rule.if.length - 1) {
+                conditionsText += ' ';
+            }
         });
 
-        let mainOperator = '';
-        if (operatorCounts.OR > 0) mainOperator = 'OR';
-        else if (operatorCounts.NOT > 0) mainOperator = 'NOT';
-        else if (operatorCounts.AND > 0 || rule.if.length > 1) mainOperator = 'AND';
-
         ruleItem.innerHTML = `
-            <div class="rule-content">
-                <div class="rule-header">
-                    <span class="rule-operator-badge ${mainOperator.toLowerCase()}">
-                        ${getOperatorDisplay(mainOperator)}
-                    </span>
-                    <span class="rule-cf">CF: ${rule.cf.toFixed(2)}</span>
+            <div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <span style="color: #667eea; font-weight: 500;">CF: ${rule.cf.toFixed(2)}</span>
                 </div>
-                <div class="rule-if"><strong>ЕСЛИ:</strong> ${formatRuleConditions(rule.if)}</div>
-                <div class="rule-then"><strong>ТО:</strong> ${rule.then}</div>
+                <div><strong>ЕСЛИ:</strong> ${conditionsText}</div>
+                <div><strong>ТО:</strong> ${rule.then}</div>
             </div>
         `;
         rulesList.appendChild(ruleItem);
@@ -917,25 +726,3 @@ document.addEventListener('keypress', function(event) {
         }
     }
 });
-
-// Вспомогательная функция для проверки парсинга
-function testParsing() {
-    const testCases = [
-        'кашель, температура, слабость',
-        'кашель, И, температура, ИЛИ, насморк',
-        'кашель, температура, насморк НЕТ',
-        '(кашель, температура), слабость',
-        '(кашель, температура), ИЛИ, (насморк, чихание)',
-        '(кашель, температура), НЕТ, насморк',
-        'кашель, (температура, слабость), ИЛИ, головная боль'
-    ];
-
-    testCases.forEach((test, index) => {
-        console.log(`\nТест ${index + 1}: "${test}"`);
-        const parsed = parseConditions(test.split(','));
-        console.log('Результат:', JSON.stringify(parsed, null, 2));
-    });
-}
-
-// Можно вызвать testParsing() в консоли для отладки
-window.testParsing = testParsing;

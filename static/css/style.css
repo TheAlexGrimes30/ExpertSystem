@@ -1,3 +1,4 @@
+/* Основные стили */
 * {
     margin: 0;
     padding: 0;
@@ -21,6 +22,7 @@ body {
     overflow: hidden;
 }
 
+/* Заголовок */
 header {
     background: linear-gradient(135deg, #2c3e50 0%, #4a6491 100%);
     color: white;
@@ -37,6 +39,14 @@ header h1 {
     gap: 15px;
 }
 
+.subtitle {
+    font-size: 1.1em;
+    opacity: 0.9;
+    margin-top: 5px;
+    font-weight: normal;
+}
+
+/* Основной контент */
 .main-content {
     display: grid;
     grid-template-columns: 300px 1fr;
@@ -51,6 +61,7 @@ header h1 {
     }
 }
 
+/* Панели */
 .panel {
     background: #f8f9fa;
     border-radius: 10px;
@@ -69,10 +80,7 @@ header h1 {
     gap: 10px;
 }
 
-.knowledge-base-panel {
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-}
-
+/* Управление файлами */
 .file-management {
     margin-bottom: 25px;
 }
@@ -97,16 +105,6 @@ header h1 {
     border-radius: 8px;
     background: white;
     font-size: 14px;
-    cursor: pointer;
-}
-
-#knowledgeBaseList option {
-    padding: 8px;
-    border-bottom: 1px solid #eee;
-}
-
-#knowledgeBaseList option:hover {
-    background: #e9ecef;
 }
 
 .file-buttons {
@@ -115,16 +113,11 @@ header h1 {
     gap: 10px;
 }
 
+/* Статистика */
 .current-state {
     margin-top: 25px;
     padding-top: 20px;
     border-top: 1px solid #dee2e6;
-}
-
-.current-state h3 {
-    font-size: 1.1em;
-    color: #495057;
-    margin-bottom: 15px;
 }
 
 .stats {
@@ -138,19 +131,10 @@ header h1 {
 }
 
 .stat {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    text-align: center;
     padding: 15px;
     background: #f8f9fa;
     border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-}
-
-.stat i {
-    font-size: 1.5em;
-    color: #667eea;
-    margin-bottom: 10px;
 }
 
 .stat-label {
@@ -165,10 +149,7 @@ header h1 {
     color: #2c3e50;
 }
 
-.facts-rules-panel {
-    background: white;
-}
-
+/* Вкладки */
 .tabs {
     display: flex;
     gap: 5px;
@@ -188,7 +169,6 @@ header h1 {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 0.95em;
 }
 
 .tab-btn:hover {
@@ -210,12 +190,7 @@ header h1 {
     display: block;
 }
 
-.tab-content h3 {
-    color: #495057;
-    margin-bottom: 20px;
-    font-size: 1.2em;
-}
-
+/* Формы ввода */
 .input-group {
     display: grid;
     grid-template-columns: 1fr 120px 150px 120px;
@@ -244,11 +219,7 @@ header h1 {
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
-.input-group input::placeholder {
-    color: #adb5bd;
-    font-size: 0.9em;
-}
-
+/* Подсказки */
 .hint-box {
     background: #e9ecef;
     padding: 15px;
@@ -257,14 +228,9 @@ header h1 {
     border-left: 4px solid #667eea;
 }
 
-.hint-box p {
-    margin-bottom: 10px;
-    font-weight: 500;
-}
-
 .hint-box ul {
     padding-left: 20px;
-    margin-bottom: 10px;
+    margin: 10px 0;
 }
 
 .hint-box li {
@@ -280,15 +246,9 @@ header h1 {
     font-size: 0.9em;
 }
 
+/* Списки */
 .list-container {
     margin-top: 25px;
-}
-
-.list-container h4 {
-    font-size: 1em;
-    color: #6c757d;
-    margin-bottom: 15px;
-    font-weight: 500;
 }
 
 .scrollable-list {
@@ -326,71 +286,11 @@ header h1 {
 
 .fact-content, .rule-content {
     display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.fact-text, .rule-if, .rule-then {
-    line-height: 1.6;
-}
-
-.rule-if {
-    margin-bottom: 8px;
-}
-
-.rule-then {
-    color: #2c3e50;
-    font-weight: 500;
-}
-
-.rule-header {
-    display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 8px;
 }
 
-.rule-operator-badge {
-    background: #6c757d;
-    color: white;
-    padding: 2px 8px;
-    border-radius: 10px;
-    font-size: 0.75em;
-    font-weight: 500;
-    margin: 0 3px;
-    display: inline-block;
-}
-
-.rule-operator-badge.and {
-    background: #28a745;
-}
-
-.rule-operator-badge.or {
-    background: #ffc107;
-    color: #212529;
-}
-
-.rule-operator-badge.not {
-    background: #dc3545;
-}
-
-.fact-cf, .rule-cf {
-    align-self: flex-start;
-    background: #667eea;
-    color: white;
-    padding: 4px 12px;
-    border-radius: 12px;
-    font-size: 0.85em;
-    font-weight: 500;
-}
-
-.empty-message {
-    text-align: center;
-    padding: 30px;
-    color: #6c757d;
-    font-style: italic;
-}
-
+/* Кнопки */
 .btn {
     padding: 10px 16px;
     border: none;
@@ -402,8 +302,6 @@ header h1 {
     align-items: center;
     justify-content: center;
     gap: 8px;
-    font-size: 0.95em;
-    min-width: 120px;
 }
 
 .btn:hover {
@@ -431,6 +329,47 @@ header h1 {
     color: white;
 }
 
+.action-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.empty-message {
+    text-align: center;
+    padding: 30px;
+    color: #6c757d;
+    font-style: italic;
+}
+
+/* Результаты анализа */
+.query-results {
+    margin-top: 25px;
+}
+
+.conclusion-card {
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    background: white;
+}
+
+.confidence-badge {
+    display: inline-block;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    margin-left: 10px;
+}
+
+.very-high { background: #d4edda; color: #155724; }
+.high { background: #d1ecf1; color: #0c5460; }
+.medium { background: #fff3cd; color: #856404; }
+.low { background: #ffe5d0; color: #853904; }
+.very-low { background: #f8d7da; color: #721c24; }
+
+/* Футер */
 footer {
     text-align: center;
     padding: 20px;
@@ -439,493 +378,13 @@ footer {
     margin-top: 20px;
 }
 
-footer p {
-    margin: 5px 0;
+.footer-content {
+    max-width: 800px;
+    margin: 0 auto;
 }
 
 .hint {
     font-size: 0.9em;
     opacity: 0.7;
     margin-top: 5px;
-    max-width: 600px;
-    margin-left: auto;
-    margin-right: auto;
-}
-
-.rule-if strong, .rule-then strong {
-    color: #495057;
-}
-
-/* Стили для вкладки диагностики */
-.query-section {
-    margin-top: 20px;
-}
-
-.query-section .input-group {
-    grid-template-columns: 1fr 150px;
-    margin-bottom: 20px;
-}
-
-.query-results {
-    margin-top: 25px;
-}
-
-.query-results h4 {
-    font-size: 1.1em;
-    color: #495057;
-    margin-bottom: 15px;
-    font-weight: 500;
-}
-
-.query-result-item {
-    padding: 20px;
-    margin-bottom: 15px;
-    background: white;
-    border-radius: 8px;
-    border-left: 4px solid #667eea;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-}
-
-.query-result-item.found {
-    border-left-color: #28a745;
-    background: #f8fff9;
-}
-
-.query-result-item.inferrable {
-    border-left-color: #ffc107;
-    background: #fffbf0;
-}
-
-.query-result-item.not-found {
-    border-left-color: #dc3545;
-    background: #fff5f5;
-}
-
-.query-result-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 15px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid #e9ecef;
-}
-
-.query-result-header i {
-    font-size: 1.2em;
-}
-
-.query-result-item.found .query-result-header i {
-    color: #28a745;
-}
-
-.query-result-item.inferrable .query-result-header i {
-    color: #ffc107;
-}
-
-.query-result-item.not-found .query-result-header i {
-    color: #dc3545;
-}
-
-.query-result-title {
-    font-weight: 600;
-    color: #2c3e50;
-    font-size: 1.1em;
-}
-
-.query-result-details {
-    margin-bottom: 15px;
-}
-
-.query-result-details p {
-    margin-bottom: 8px;
-    line-height: 1.5;
-}
-
-.query-result-cf {
-    display: inline-block;
-    background: #667eea;
-    color: white;
-    padding: 4px 12px;
-    border-radius: 12px;
-    font-size: 0.9em;
-    font-weight: 500;
-    margin-right: 10px;
-}
-
-.subtitle {
-    font-size: 1.1em;
-    opacity: 0.9;
-    margin-top: 5px;
-    font-weight: normal;
-}
-
-.action-buttons {
-    display: flex;
-    gap: 10px;
-    margin-top: 15px;
-}
-
-.footer-content {
-    max-width: 800px;
-    margin: 0 auto;
-}
-
-/* Стили для отображения диагнозов */
-.diagnosis-header {
-    margin-bottom: 20px;
-    padding-bottom: 15px;
-    border-bottom: 1px solid #e0e0e0;
-}
-
-.symptoms-input {
-    background: #f8f9fa;
-    padding: 12px;
-    border-radius: 8px;
-    margin-top: 10px;
-}
-
-.symptoms-input p {
-    margin: 0;
-    font-size: 0.95em;
-}
-
-/* Анализ симптомов */
-.symptoms-analysis {
-    margin-bottom: 20px;
-}
-
-.symptoms-analysis h5 {
-    font-size: 1em;
-    color: #495057;
-    margin-bottom: 10px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.symptoms-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.symptom-item {
-    display: flex;
-    align-items: center;
-    padding: 8px 12px;
-    border-radius: 6px;
-    background: white;
-    border-left: 3px solid #dee2e6;
-}
-
-.symptom-item.matched {
-    border-left-color: #28a745;
-    background: #f8fff9;
-}
-
-.symptom-item.not-found {
-    border-left-color: #dc3545;
-    background: #fff5f5;
-}
-
-.symptom-item i {
-    margin-right: 10px;
-    font-size: 0.9em;
-}
-
-.symptom-item.matched i {
-    color: #28a745;
-}
-
-.symptom-item.not-found i {
-    color: #dc3545;
-}
-
-.symptom-name {
-    flex: 1;
-    font-size: 0.95em;
-}
-
-.symptom-cf {
-    font-size: 0.85em;
-    color: #6c757d;
-    background: #e9ecef;
-    padding: 2px 8px;
-    border-radius: 10px;
-}
-
-/* Карточки диагнозов */
-.diagnoses-section {
-    margin-top: 20px;
-}
-
-.diagnoses-section h5 {
-    font-size: 1.1em;
-    color: #495057;
-    margin-bottom: 15px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.diagnosis-card {
-    display: flex;
-    background: white;
-    border-radius: 10px;
-    padding: 15px;
-    margin-bottom: 15px;
-    border-left: 5px solid #667eea;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.08);
-    transition: transform 0.2s;
-}
-
-.diagnosis-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 10px rgba(0,0,0,0.12);
-}
-
-.diagnosis-card.very-high {
-    border-left-color: #28a745;
-    background: linear-gradient(to right, #f8fff9, white);
-}
-
-.diagnosis-card.high {
-    border-left-color: #17a2b8;
-    background: linear-gradient(to right, #f0f9ff, white);
-}
-
-.diagnosis-card.medium {
-    border-left-color: #ffc107;
-    background: linear-gradient(to right, #fffbf0, white);
-}
-
-.diagnosis-card.low {
-    border-left-color: #fd7e14;
-    background: linear-gradient(to right, #fff5f0, white);
-}
-
-.diagnosis-card.very-low {
-    border-left-color: #dc3545;
-    background: linear-gradient(to right, #fff5f5, white);
-}
-
-.diagnosis-rank {
-    font-size: 1.8em;
-    font-weight: bold;
-    color: #6c757d;
-    min-width: 60px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: 'Courier New', monospace;
-}
-
-.diagnosis-content {
-    flex: 1;
-}
-
-.diagnosis-main {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-    flex-wrap: wrap;
-    gap: 10px;
-}
-
-.diagnosis-name {
-    font-size: 1.3em;
-    margin: 0;
-    color: #2c3e50;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.diagnosis-name i {
-    color: #667eea;
-}
-
-.diagnosis-confidence {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    flex-wrap: wrap;
-}
-
-.confidence-badge {
-    padding: 6px 15px;
-    border-radius: 20px;
-    font-size: 0.9em;
-    font-weight: 500;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.confidence-badge.very-high {
-    background: #d4edda;
-    color: #155724;
-}
-
-.confidence-badge.high {
-    background: #d1ecf1;
-    color: #0c5460;
-}
-
-.confidence-badge.medium {
-    background: #fff3cd;
-    color: #856404;
-}
-
-.confidence-badge.low {
-    background: #ffe5d0;
-    color: #853904;
-}
-
-.confidence-badge.very-low {
-    background: #f8d7da;
-    color: #721c24;
-}
-
-.cf-value {
-    background: #667eea;
-    color: white;
-    padding: 6px 15px;
-    border-radius: 15px;
-    font-size: 0.95em;
-    font-weight: 500;
-    font-family: 'Courier New', monospace;
-}
-
-.diagnosis-details {
-    background: #f8f9fa;
-    padding: 15px;
-    border-radius: 8px;
-    margin-top: 15px;
-}
-
-.detail-row {
-    margin-bottom: 10px;
-    display: flex;
-    align-items: flex-start;
-}
-
-.detail-row:last-child {
-    margin-bottom: 0;
-}
-
-.detail-row strong {
-    min-width: 150px;
-    color: #495057;
-    font-size: 0.95em;
-}
-
-.conditions-list {
-    background: #e9ecef;
-    padding: 6px 12px;
-    border-radius: 6px;
-    margin-left: 10px;
-    font-family: monospace;
-    font-size: 0.95em;
-}
-
-.cf-calculation {
-    background: #d1d9e6;
-    padding: 6px 12px;
-    border-radius: 6px;
-    margin-left: 10px;
-    font-family: 'Courier New', monospace;
-    font-size: 0.9em;
-    color: #2c3e50;
-}
-
-.matched-symptoms {
-    background: #d4edda;
-    padding: 6px 12px;
-    border-radius: 6px;
-    margin-left: 10px;
-    font-size: 0.95em;
-}
-
-/* Когда нет диагноза */
-.no-diagnosis {
-    margin-top: 20px;
-}
-
-.almost-diagnoses {
-    margin-top: 15px;
-    padding: 15px;
-    background: #fff3cd;
-    border-radius: 8px;
-    border: 1px solid #ffeaa7;
-}
-
-.almost-rule {
-    margin-bottom: 15px;
-    padding: 12px;
-    background: white;
-    border-radius: 6px;
-    border-left: 3px solid #ffc107;
-}
-
-.almost-rule:last-child {
-    margin-bottom: 0;
-}
-
-.almost-diagnosis {
-    font-weight: 500;
-    color: #2c3e50;
-    margin-bottom: 8px;
-    font-size: 1.1em;
-}
-
-.almost-progress {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    margin-bottom: 8px;
-}
-
-.progress-bar {
-    flex: 1;
-    height: 10px;
-    background: #e9ecef;
-    border-radius: 5px;
-    overflow: hidden;
-}
-
-.progress-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #ffc107, #ff9800);
-    transition: width 0.3s;
-}
-
-.progress-text {
-    font-size: 0.9em;
-    color: #6c757d;
-    min-width: 100px;
-}
-
-.missing-conditions {
-    padding: 8px;
-    background: #f8f9fa;
-    border-radius: 4px;
-    font-size: 0.9em;
-    color: #dc3545;
-    border: 1px solid #f5c6cb;
-}
-
-@media (max-width: 768px) {
-    .main-content {
-        padding: 15px;
-    }
-
-    header {
-        padding: 20px;
-    }
-
-    header h1 {
-        font-size: 1.8em;
-    }
 }

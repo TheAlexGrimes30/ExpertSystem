@@ -1,14 +1,17 @@
 import os
 from pathlib import Path
+from typing import Dict, List
+import json
+import urllib.parse
 
 import uvicorn
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel
 
-from app.database import KnowledgeBaseManager
-from app.expert_system import ExpertSystem
+from expert_system import ExpertSystem
 
 app = FastAPI(
     title="Универсальная экспертная система",
@@ -19,18 +22,81 @@ app = FastAPI(
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Создаем необходимые директории
-(BASE_DIR / "static/css").mkdir(parents=True, exist_ok=True)
-(BASE_DIR / "static/js").mkdir(parents=True, exist_ok=True)
-(BASE_DIR / "templates").mkdir(parents=True, exist_ok=True)
-(BASE_DIR / "knowledge_base").mkdir(parents=True, exist_ok=True)
+static_dir = BASE_DIR / "static"
+css_dir = static_dir / "css"
+js_dir = static_dir / "js"
+templates_dir = BASE_DIR / "templates"
+knowledge_base_dir = BASE_DIR / "knowledge_base"
+
+for directory in [css_dir, js_dir, templates_dir, knowledge_base_dir]:
+    directory.mkdir(parents=True, exist_ok=True)
 
 # Монтируем статические файлы
-app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
-templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+templates = Jinja2Templates(directory=str(templates_dir))
 
-# Инициализируем компоненты системы
-kb_manager = KnowledgeBaseManager(str(BASE_DIR / "knowledge_base"))
+# Инициализируем экспертную систему
 expert_system = ExpertSystem()
+
+
+# Pydantic модели для валидации данных
+class FactData(BaseModel):
+    fact: str
+    cf: float
+
+
+class RuleCondition(BaseModel):
+    fact: str | List[str]
+    operator: str = ""
+    is_group: bool = False
+
+
+class RuleData(BaseModel):
+    conditions: List[RuleCondition | Dict]
+    conclusion: str
+    cf: float
+
+
+class QueryData(BaseModel):
+    query: str
+
+
+# Вспомогательные функции для работы с файлами
+def list_knowledge_bases() -> List[str]:
+    """Получить список файлов баз знаний"""
+    files = []
+    for file in knowledge_base_dir.iterdir():
+        if file.is_file() and file.suffix == '.json':
+            files.append(file.name)
+    return sorted(files)
+
+
+def load_knowledge_base(filename: str) -> Dict:
+    """Загрузить базу знаний из файла"""
+    filepath = knowledge_base_dir / filename
+    if not filepath.exists():
+        raise HTTPException(status_code=404, detail="Файл не найден")
+
+    with open(filepath, 'r', encoding='utf-8') as f:
+        return json.load(f)
+
+
+def save_knowledge_base(filename: str, data: Dict) -> None:
+    """Сохранить базу знаний в файл"""
+    if not filename.endswith('.json'):
+        filename += '.json'
+
+    filepath = knowledge_base_dir / filename
+    with open(filepath, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+def delete_knowledge_base(filename: str) -> None:
+    """Удалить файл базы знаний"""
+    filepath = knowledge_base_dir / filename
+    if not filepath.exists():
+        raise HTTPException(status_code=404, detail="Файл не найден")
+    filepath.unlink()
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -43,54 +109,62 @@ async def read_root(request: Request):
 async def get_knowledge_bases():
     """Получить список доступных баз знаний"""
     try:
-        files = kb_manager.list_knowledge_bases()
-        return {"success": True, "files": files}
+        files = list_knowledge_bases()
+        return JSONResponse(content={"success": True, "files": files})
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/knowledge-base/{filename}")
-async def load_knowledge_base(filename: str):
+async def load_knowledge_base_endpoint(filename: str):
     """Загрузить базу знаний из файла"""
     try:
-        data = kb_manager.load_knowledge_base(filename)
+        data = load_knowledge_base(filename)
         expert_system.load_from_dict(data)
-        return {
+        return JSONResponse(content={
             "success": True,
             "facts": expert_system.facts,
             "rules": expert_system.rules,
             "filename": filename
-        }
+        })
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.post("/api/knowledge-base/{filename}")
-async def save_knowledge_base(filename: str, data: dict):
+async def save_knowledge_base_endpoint(filename: str):
     """Сохранить текущую базу знаний в файл"""
     try:
-        kb_manager.save_knowledge_base(filename, data)
-        return {"success": True}
+        data = expert_system.to_dict()
+        save_knowledge_base(filename, data)
+        return JSONResponse(content={"success": True})
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.delete("/api/knowledge-base/{filename}")
-async def delete_knowledge_base(filename: str):
+async def delete_knowledge_base_endpoint(filename: str):
     """Удалить файл базы знаний"""
     try:
-        kb_manager.delete_knowledge_base(filename)
-        return {"success": True}
+        delete_knowledge_base(filename)
+        return JSONResponse(content={"success": True})
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.post("/api/fact")
-async def add_fact(fact_data: dict):
+async def add_fact(fact_data: FactData):
     """Добавить новый факт"""
     try:
-        expert_system.add_fact(fact_data["fact"], fact_data["cf"])
-        return {"success": True, "facts": expert_system.facts}
+        expert_system.add_fact(fact_data.fact, fact_data.cf)
+        return JSONResponse(content={
+            "success": True,
+            "facts": expert_system.facts
+        })
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -99,10 +173,12 @@ async def add_fact(fact_data: dict):
 async def delete_fact(fact: str):
     """Удалить факт"""
     try:
-        import urllib.parse
         decoded_fact = urllib.parse.unquote(fact)
         expert_system.delete_fact(decoded_fact)
-        return {"success": True, "facts": expert_system.facts}
+        return JSONResponse(content={
+            "success": True,
+            "facts": expert_system.facts
+        })
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -111,12 +187,20 @@ async def delete_fact(fact: str):
 async def add_rule(rule_data: dict):
     """Добавить новое правило"""
     try:
-        expert_system.add_rule(
-            rule_data["conditions"],
-            rule_data["conclusion"],
-            rule_data["cf"]
-        )
-        return {"success": True, "rules": expert_system.rules}
+        conditions = rule_data.get("conditions", [])
+        conclusion = rule_data.get("conclusion", "")
+        cf = float(rule_data.get("cf", 0.5))
+
+        if not conditions:
+            raise HTTPException(status_code=400, detail="Условия не могут быть пустыми")
+        if not conclusion:
+            raise HTTPException(status_code=400, detail="Заключение не может быть пустым")
+
+        expert_system.add_rule(conditions, conclusion, cf)
+        return JSONResponse(content={
+            "success": True,
+            "rules": expert_system.rules
+        })
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -126,7 +210,10 @@ async def delete_rule(index: int):
     """Удалить правило по индексу"""
     try:
         expert_system.delete_rule(index)
-        return {"success": True, "rules": expert_system.rules}
+        return JSONResponse(content={
+            "success": True,
+            "rules": expert_system.rules
+        })
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -136,55 +223,63 @@ async def make_inference():
     """Выполнить логический вывод"""
     try:
         inferred = expert_system.infer()
-        return {
+        return JSONResponse(content={
             "success": True,
             "inferred": inferred,
             "all_facts": expert_system.facts
-        }
+        })
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.post("/api/query")
-async def make_query(query_data: dict):
-    """Выполнить диагностику на основе симптомов"""
+async def make_query(query_data: QueryData):
+    """Выполнить анализ на основе введенных данных"""
     try:
-        symptoms = query_data.get("query", "").strip()
+        query = query_data.query.strip()
 
-        if not symptoms:
-            return {
-                "success": False,
-                "error": "Введите симптомы через запятую (например: кашель, температура, насморк)"
-            }
+        if not query:
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "success": False,
+                    "error": "Введите данные через запятую (например: двигатель_шум, вибрация, дым)"
+                }
+            )
 
-        result = expert_system.query(symptoms)
+        result = expert_system.query(query)
 
-        # Если query возвращает success=False (ошибка)
         if "success" in result and not result["success"]:
-            return {
-                "success": False,
-                "error": result.get("error", "Ошибка при выполнении запроса")
-            }
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "success": False,
+                    "error": result.get("error", "Ошибка при выполнении запроса")
+                }
+            )
 
-        return {
+        return JSONResponse(content={
             "success": True,
             "result": result
-        }
+        })
     except Exception as e:
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        return JSONResponse(
+            status_code=400,
+            content={
+                "success": False,
+                "error": str(e)
+            }
+        )
 
 
 @app.get("/api/current-state")
 async def get_current_state():
     """Получить текущее состояние системы (факты и правила)"""
-    return {
+    return JSONResponse(content={
         "success": True,
         "facts": expert_system.facts,
         "rules": expert_system.rules
-    }
+    })
 
 
 if __name__ == "__main__":
@@ -200,7 +295,7 @@ if __name__ == "__main__":
     print("=" * 60)
 
     uvicorn.run(
-        "app.main:app",
+        "main:app",
         host="0.0.0.0",
         port=port,
         reload=True,
