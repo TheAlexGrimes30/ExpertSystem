@@ -119,59 +119,6 @@ function selectFact(fact, element) {
     document.getElementById('factCF').value = currentFacts[fact];
 }
 
-function addOrEditRule() {
-    const conditionsInput = document.getElementById('conditionsInput');
-    const conclusionInput = document.getElementById('conclusionInput');
-    const ruleCFInput = document.getElementById('ruleCF');
-
-    // Парсим условия с операторами
-    const rawConditions = conditionsInput.value.split(',').map(c => c.trim()).filter(c => c);
-    const conditions = parseConditions(rawConditions);
-
-    const conclusion = conclusionInput.value.trim();
-    const cf = parseFloat(ruleCFInput.value);
-
-    if (conditions.length === 0) {
-        alert('Пожалуйста, введите хотя бы одно условие');
-        return;
-    }
-
-    if (!conclusion) {
-        alert('Пожалуйста, введите заключение');
-        return;
-    }
-
-    if (isNaN(cf) || cf < 0 || cf > 1) {
-        alert('Коэффициент уверенности должен быть числом от 0 до 1');
-        return;
-    }
-
-    const ruleData = {
-        conditions: conditions,
-        conclusion: conclusion,
-        cf: cf
-    };
-
-    fetch('/api/rule', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(ruleData)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            currentRules = data.rules;
-            displayRules();
-            clearRuleInputs();
-            updateCounters();
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Ошибка при сохранении правила');
-    });
-}
-
 function parseConditions(rawConditions) {
     const conditions = [];
     const operatorMap = {
@@ -185,13 +132,13 @@ function parseConditions(rawConditions) {
         let fact = rawCondition;
         let operator = '';
 
-        // Ищем оператор в конце
+        // Разделяем на слова
         const words = rawCondition.split(' ');
-        const lastWord = words[words.length - 1].toUpperCase();
+        const lastWord = words[words.length - 1];
 
-        // Проверяем русские и английские операторы
-        if (operatorMap[lastWord] || ['AND', 'OR', 'NOT'].includes(lastWord)) {
-            operator = operatorMap[lastWord] || lastWord;
+        // Проверяем, является ли последнее слово оператором
+        if (operatorMap[lastWord]) {
+            operator = operatorMap[lastWord];
             fact = words.slice(0, -1).join(' ').trim();
         } else if (i < rawConditions.length - 1) {
             // По умолчанию для всех кроме последнего - AND
@@ -205,6 +152,119 @@ function parseConditions(rawConditions) {
     }
 
     return conditions;
+}
+
+function addOrEditRule() {
+    const conditionsInput = document.getElementById('conditionsInput');
+    const conclusionInput = document.getElementById('conclusionInput');
+    const ruleCFInput = document.getElementById('ruleCF');
+
+    // Парсим условия
+    const rawConditions = conditionsInput.value.split(',').map(c => c.trim()).filter(c => c);
+
+    if (rawConditions.length === 0) {
+        alert('Пожалуйста, введите хотя бы одно условие');
+        return;
+    }
+
+    // Обработка простого случая: если только одно условие без операторов
+    if (rawConditions.length === 1) {
+        const singleCondition = rawConditions[0];
+        // Проверяем, есть ли оператор в условии
+        const hasOperator = ['И', 'ИЛИ', 'НЕТ'].some(op => singleCondition.endsWith(' ' + op));
+
+        if (!hasOperator) {
+            // Простое условие без оператора
+            const conditions = [{
+                fact: singleCondition,
+                operator: ''
+            }];
+
+            const conclusion = conclusionInput.value.trim();
+            const cf = parseFloat(ruleCFInput.value);
+
+            if (!conclusion) {
+                alert('Пожалуйста, введите заключение');
+                return;
+            }
+
+            if (isNaN(cf) || cf < 0 || cf > 1) {
+                alert('Коэффициент уверенности должен быть числом от 0 до 1');
+                return;
+            }
+
+            const ruleData = {
+                conditions: conditions,
+                conclusion: conclusion,
+                cf: cf
+            };
+
+            fetch('/api/rule', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(ruleData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    currentRules = data.rules;
+                    displayRules();
+                    clearRuleInputs();
+                    updateCounters();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Ошибка при сохранении правила');
+            });
+            return;
+        }
+    }
+
+    // Сложные условия с операторами
+    try {
+        const conditions = parseConditions(rawConditions);
+        const conclusion = conclusionInput.value.trim();
+        const cf = parseFloat(ruleCFInput.value);
+
+        if (!conclusion) {
+            alert('Пожалуйста, введите заключение');
+            return;
+        }
+
+        if (isNaN(cf) || cf < 0 || cf > 1) {
+            alert('Коэффициент уверенности должен быть числом от 0 до 1');
+            return;
+        }
+
+        const ruleData = {
+            conditions: conditions,
+            conclusion: conclusion,
+            cf: cf
+        };
+
+        fetch('/api/rule', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(ruleData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                currentRules = data.rules;
+                displayRules();
+                clearRuleInputs();
+                updateCounters();
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Ошибка при сохранении правила');
+        });
+    } catch (error) {
+        console.error('Error parsing conditions:', error);
+        alert('Ошибка при разборе условий. Проверьте синтаксис.');
+    }
 }
 
 function deleteSelectedRule() {
@@ -253,18 +313,24 @@ function selectRule(index, element) {
     element.classList.add('selected');
 
     const rule = currentRules[index];
+
     // Восстанавливаем условия в читаемом формате
-    const conditionsText = rule.if.map((cond, i) => {
+    const conditionsText = formatConditionsForInput(rule.if);
+    document.getElementById('conditionsInput').value = conditionsText;
+    document.getElementById('conclusionInput').value = rule.then;
+    document.getElementById('ruleCF').value = rule.cf;
+}
+
+function formatConditionsForInput(conditions) {
+    if (!conditions || conditions.length === 0) return '';
+
+    return conditions.map((cond, i) => {
         let text = cond.fact;
-        if (cond.operator && i < rule.if.length - 1) {
+        if (cond.operator) {
             text += ' ' + getOperatorDisplay(cond.operator);
         }
         return text;
     }).join(', ');
-
-    document.getElementById('conditionsInput').value = conditionsText;
-    document.getElementById('conclusionInput').value = rule.then;
-    document.getElementById('ruleCF').value = rule.cf;
 }
 
 function makeInference() {
@@ -440,13 +506,12 @@ function displayRules() {
         ruleItem.className = 'rule-item';
         ruleItem.onclick = () => selectRule(index, ruleItem);
 
-        // Считаем сколько операторов каждого типа
+        // Определяем основной оператор для отображения
         const operatorCounts = { AND: 0, OR: 0, NOT: 0 };
         rule.if.forEach(cond => {
             if (cond.operator) operatorCounts[cond.operator]++;
         });
 
-        // Определяем основной оператор для отображения
         let mainOperator = '';
         if (operatorCounts.OR > 0) mainOperator = 'OR';
         else if (operatorCounts.NOT > 0) mainOperator = 'NOT';
@@ -469,6 +534,8 @@ function displayRules() {
 }
 
 function formatRuleConditions(conditions) {
+    if (!conditions || conditions.length === 0) return '';
+
     return conditions.map((cond, i) => {
         let result = cond.fact;
         if (cond.operator && i < conditions.length - 1) {

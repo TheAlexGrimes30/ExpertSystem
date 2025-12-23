@@ -1,61 +1,55 @@
 import json
 import os
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict
+
 
 class KnowledgeBaseManager:
-    def __init__(self, base_dir: str = "knowledge_base"):
+    def __init__(self, base_dir: str):
         self.base_dir = Path(base_dir)
-        self.base_dir.mkdir(exist_ok=True)
+        self.base_dir.mkdir(parents=True, exist_ok=True)
 
     def list_knowledge_bases(self) -> List[str]:
-        """Получить список всех JSON файлов"""
-        json_files = []
-        for file in self.base_dir.glob("*.json"):
-            json_files.append(file.name)
-        return sorted(json_files)
+        """Получить список всех файлов баз знаний"""
+        try:
+            files = [f for f in os.listdir(self.base_dir) if f.endswith('.json')]
+            return sorted(files)
+        except Exception as e:
+            print(f"Ошибка при получении списка файлов: {e}")
+            return []
 
-    def load_knowledge_base(self, filename: str) -> Dict[str, Any]:
+    def load_knowledge_base(self, filename: str) -> Dict:
         """Загрузить базу знаний из файла"""
-        filepath = self.base_dir / filename
-        if not filepath.exists():
-            raise FileNotFoundError(f"Файл {filename} не найден")
-
-        with open(filepath, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-
-        if not isinstance(data, dict):
-            raise ValueError("Неверный формат файла")
-
-        if "facts" not in data:
-            data["facts"] = {}
-        if "rules" not in data:
-            data["rules"] = []
-
-        return data
-
-    def save_knowledge_base(self, filename: str, data: Dict[str, Any]):
-        """Сохранить базу знаний в файл"""
-        if not filename.endswith('.json'):
-            filename += '.json'
-
-        filepath = self.base_dir / filename
-
-        counter = 1
-        original_filename = filename
-        while filepath.exists():
-            name, ext = os.path.splitext(original_filename)
-            filename = f"{name}_{counter}{ext}"
+        try:
             filepath = self.base_dir / filename
-            counter += 1
+            if not filepath.exists():
+                raise FileNotFoundError(f"Файл {filename} не найден")
 
-        with open(filepath, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+            with open(filepath, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+
+            return data
+        except Exception as e:
+            raise Exception(f"Ошибка при загрузке файла {filename}: {str(e)}")
+
+    def save_knowledge_base(self, filename: str, data: Dict):
+        """Сохранить базу знаний в файл"""
+        try:
+            if not filename.endswith('.json'):
+                filename += '.json'
+
+            filepath = self.base_dir / filename
+
+            with open(filepath, 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            raise Exception(f"Ошибка при сохранении файла {filename}: {str(e)}")
 
     def delete_knowledge_base(self, filename: str):
         """Удалить файл базы знаний"""
-        filepath = self.base_dir / filename
-        if filepath.exists():
-            filepath.unlink()
-        else:
-            raise FileNotFoundError(f"Файл {filename} не найден")
+        try:
+            filepath = self.base_dir / filename
+            if filepath.exists():
+                filepath.unlink()
+        except Exception as e:
+            raise Exception(f"Ошибка при удалении файла {filename}: {str(e)}")

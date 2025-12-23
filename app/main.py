@@ -2,7 +2,6 @@ import os
 from pathlib import Path
 
 import uvicorn
-import urllib.parse
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
@@ -148,7 +147,6 @@ if __name__ == "__main__":
     print(f"Сервер запускается на http://localhost:{port}")
     print(f"Для остановки сервера нажмите Ctrl+C")
     print("=" * 50)
-    print(BASE_DIR)
 
     uvicorn.run(
         "app.main:app",

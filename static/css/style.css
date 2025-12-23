@@ -37,13 +37,6 @@ header h1 {
     gap: 15px;
 }
 
-header p {
-    font-size: 1.1em;
-    opacity: 0.9;
-    max-width: 800px;
-    margin: 0 auto;
-}
-
 .main-content {
     display: grid;
     grid-template-columns: 300px 1fr 350px;
@@ -225,6 +218,12 @@ header p {
     align-items: center;
 }
 
+@media (max-width: 768px) {
+    .input-group {
+        grid-template-columns: 1fr;
+    }
+}
+
 .input-group input {
     padding: 12px;
     border: 2px solid #dee2e6;
@@ -259,11 +258,19 @@ header p {
 
 .hint-box ul {
     padding-left: 20px;
-    margin-bottom: 0;
+    margin-bottom: 10px;
 }
 
 .hint-box li {
     margin-bottom: 5px;
+    font-size: 0.9em;
+}
+
+.hint-box code {
+    background: #d1d9e6;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
     font-size: 0.9em;
 }
 
@@ -318,14 +325,23 @@ header p {
 }
 
 .fact-text, .rule-if, .rule-then {
-    line-height: 1.4;
+    line-height: 1.6;
+}
+
+.rule-if {
+    margin-bottom: 8px;
+}
+
+.rule-then {
+    color: #2c3e50;
+    font-weight: 500;
 }
 
 .rule-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 5px;
+    margin-bottom: 8px;
 }
 
 .rule-operator-badge {
@@ -335,6 +351,8 @@ header p {
     border-radius: 10px;
     font-size: 0.75em;
     font-weight: 500;
+    margin: 0 3px;
+    display: inline-block;
 }
 
 .rule-operator-badge.and {
@@ -348,6 +366,34 @@ header p {
 
 .rule-operator-badge.not {
     background: #dc3545;
+}
+
+/* Стили для группировки в правилах */
+.rule-group {
+    border: 1px dashed #adb5bd;
+    border-radius: 6px;
+    padding: 8px;
+    margin: 3px;
+    background: #f8f9fa;
+    display: inline-block;
+}
+
+.rule-group::before {
+    content: '(';
+    color: #6c757d;
+    font-weight: bold;
+    margin-right: 3px;
+}
+
+.rule-group::after {
+    content: ')';
+    color: #6c757d;
+    font-weight: bold;
+    margin-left: 3px;
+}
+
+.rule-group-content {
+    display: inline;
 }
 
 .fact-cf, .rule-cf {
@@ -499,10 +545,6 @@ footer p {
 }
 
 @media (max-width: 768px) {
-    .input-group {
-        grid-template-columns: 1fr;
-    }
-
     .main-content {
         padding: 15px;
     }

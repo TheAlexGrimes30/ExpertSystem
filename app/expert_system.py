@@ -4,47 +4,40 @@ class ExpertSystem:
         self.rules = []
 
     def add_fact(self, fact: str, cf: float):
+        """Добавить факт с коэффициентом уверенности"""
         if not 0 <= cf <= 1:
             raise ValueError("Коэффициент уверенности должен быть от 0 до 1")
         self.facts[fact] = cf
 
     def edit_fact(self, old_fact: str, new_fact: str, new_cf: float):
+        """Изменить существующий факт"""
         if old_fact in self.facts:
             del self.facts[old_fact]
         self.facts[new_fact] = new_cf
 
     def delete_fact(self, fact: str):
+        """Удалить факт"""
         if fact in self.facts:
             del self.facts[fact]
 
     def add_rule(self, conditions: list, conclusion: str, cf: float):
-        """Добавить правило с поддержкой операторов в условиях"""
+        """Добавить правило"""
         if not 0 <= cf <= 1:
             raise ValueError("Коэффициент уверенности должен быть от 0 до 1")
 
         structured_conditions = []
 
-        for i, condition in enumerate(conditions):
+        for condition in conditions:
             if isinstance(condition, dict):
-                if "fact" not in condition:
-                    raise ValueError("Условие должно содержать поле 'fact'")
-
-                operator = condition.get("operator", "").upper()
-                if operator and operator not in ["AND", "OR", "NOT", ""]:
-                    raise ValueError(f"Неизвестный оператор: {operator}")
-
                 structured_conditions.append({
-                    "fact": condition["fact"],
-                    "operator": operator
-                })
-            elif isinstance(condition, str):
-                operator = "AND" if i < len(conditions) - 1 else ""
-                structured_conditions.append({
-                    "fact": condition.strip(),
-                    "operator": operator
+                    "fact": condition.get("fact", ""),
+                    "operator": condition.get("operator", "").upper()
                 })
             else:
-                raise ValueError(f"Неверный формат условия: {condition}")
+                structured_conditions.append({
+                    "fact": str(condition).strip(),
+                    "operator": ""
+                })
 
         self.rules.append({
             "if": structured_conditions,
@@ -53,18 +46,20 @@ class ExpertSystem:
         })
 
     def edit_rule(self, index: int, conditions: list, conclusion: str, cf: float):
+        """Изменить существующее правило"""
         if 0 <= index < len(self.rules):
             self.add_rule(conditions, conclusion, cf)
             old_rule = self.rules.pop(index + 1)
             self.rules[index] = old_rule
 
     def delete_rule(self, index: int):
+        """Удалить правило по индексу"""
         if 0 <= index < len(self.rules):
             self.rules.pop(index)
 
     def _evaluate_condition(self, condition: dict) -> float:
         """Оценить одно условие"""
-        fact = condition["fact"]
+        fact = condition.get("fact", "")
         operator = condition.get("operator", "").upper()
 
         fact_cf = self.facts.get(fact, 0)
@@ -94,7 +89,10 @@ class ExpertSystem:
             elif operator == "NOT":
                 result = min(result, condition_cf)
             else:
-                result = min(result, condition_cf)
+                if i < len(conditions) - 1:
+                    result = min(result, condition_cf)
+                else:
+                    result = min(result, condition_cf)
 
         return result if result is not None else 0.0
 
@@ -128,10 +126,12 @@ class ExpertSystem:
         return inferred
 
     def load_from_dict(self, data: dict):
+        """Загрузить состояние системы из словаря"""
         self.facts = data.get("facts", {})
         self.rules = data.get("rules", [])
 
     def to_dict(self):
+        """Преобразовать состояние системы в словарь"""
         return {
             "facts": self.facts,
             "rules": self.rules
