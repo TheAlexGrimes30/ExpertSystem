@@ -14,6 +14,76 @@ class ExpertSystem:
         if fact in self.facts:
             del self.facts[fact]
 
+    def parse_conditions_string(self, conditions_str: str):
+        """Парсинг строки условий со скобками и операторами"""
+        conditions = []
+        tokens = conditions_str.split(',')
+
+        i = 0
+        while i < len(tokens):
+            token = tokens[i].strip()
+
+            # Если токен пустой, пропускаем
+            if not token:
+                i += 1
+                continue
+
+            # Проверяем операторы
+            if token.upper() in ['И', 'ИЛИ', 'НЕТ']:
+                if conditions:
+                    # Добавляем оператор к последнему условию
+                    conditions[-1]["operator"] = token.upper()
+                i += 1
+                continue
+
+            # Обработка скобок
+            if '(' in token:
+                # Нашли начало группы
+                group_tokens = []
+                group_depth = 1
+                current_token = token
+
+                # Собираем все токены группы
+                while i < len(tokens) and group_depth > 0:
+                    current_token = tokens[i].strip()
+
+                    # Считаем открывающие скобки
+                    open_count = current_token.count('(')
+                    close_count = current_token.count(')')
+                    group_depth += open_count - close_count
+
+                    # Убираем скобки из токена
+                    clean_token = current_token.replace('(', '').replace(')', '').strip()
+                    if clean_token and clean_token.upper() not in ['И', 'ИЛИ', 'НЕТ']:
+                        group_tokens.append(clean_token)
+
+                    i += 1
+
+                # Если есть оператор после группы
+                if i < len(tokens) and tokens[i].strip().upper() in ['И', 'ИЛИ', 'НЕТ']:
+                    operator = tokens[i].strip().upper()
+                    i += 1
+                else:
+                    operator = ''
+
+                # Создаем группу условий
+                conditions.append({
+                    "fact": group_tokens,  # Список фактов для группы
+                    "operator": operator,
+                    "is_group": True
+                })
+                continue
+
+            # Обычный факт
+            conditions.append({
+                "fact": token,
+                "operator": '',
+                "is_group": False
+            })
+            i += 1
+
+        return conditions
+
     def add_rule(self, conditions: list, conclusion: str, cf: float):
         """Добавить правило"""
         if not 0 <= cf <= 1:
@@ -23,14 +93,38 @@ class ExpertSystem:
 
         for condition in conditions:
             if isinstance(condition, dict):
-                structured_conditions.append({
-                    "fact": condition.get("fact", ""),
-                    "operator": condition.get("operator", "").upper()
-                })
+                # Уже структурированное условие
+                if condition.get("is_group", False):
+                    # Обрабатываем группу
+                    group_facts = condition.get("fact", [])
+                    if isinstance(group_facts, list):
+                        for fact in group_facts:
+                            structured_conditions.append({
+                                "fact": fact,
+                                "operator": condition.get("operator", "").upper(),
+                                "is_group": True
+                            })
+                    else:
+                        structured_conditions.append({
+                            "fact": group_facts,
+                            "operator": condition.get("operator", "").upper(),
+                            "is_group": True
+                        })
+                else:
+                    structured_conditions.append({
+                        "fact": condition.get("fact", ""),
+                        "operator": condition.get("operator", "").upper(),
+                        "is_group": False
+                    })
+            elif isinstance(condition, str):
+                # Парсим строку
+                parsed = self.parse_conditions_string(condition)
+                structured_conditions.extend(parsed)
             else:
                 structured_conditions.append({
                     "fact": str(condition).strip(),
-                    "operator": ""
+                    "operator": "",
+                    "is_group": False
                 })
 
         self.rules.append({
@@ -48,6 +142,7 @@ class ExpertSystem:
         """Оценить одно условие"""
         fact = condition.get("fact", "")
         operator = condition.get("operator", "").upper()
+        is_group = condition.get("is_group", False)
 
         fact_cf = self.facts.get(fact, 0)
 
@@ -56,30 +151,69 @@ class ExpertSystem:
 
         return fact_cf
 
-    def _evaluate_rule_conditions(self, conditions: list) -> float:
-        """Оценить все условия правила с учетом операторов"""
-        if not conditions:
+    def _evaluate_group_conditions(self, group_conditions: list) -> float:
+        """Оценить группу условий"""
+        if not group_conditions:
             return 0.0
 
         result = None
+        current_operator = "AND"  # По умолчанию для группы
 
-        for i, condition in enumerate(conditions):
+        for condition in group_conditions:
             condition_cf = self._evaluate_condition(condition)
             operator = condition.get("operator", "").upper()
 
             if result is None:
                 result = condition_cf
-            elif operator == "AND":
+            elif operator == "AND" or current_operator == "AND":
                 result = min(result, condition_cf)
+                current_operator = operator
             elif operator == "OR":
                 result = max(result, condition_cf)
-            elif operator == "NOT":
-                result = min(result, condition_cf)
+                current_operator = operator
             else:
-                if i < len(conditions) - 1:
-                    result = min(result, condition_cf)
-                else:
-                    result = min(result, condition_cf)
+                result = min(result, condition_cf)
+
+        return result if result is not None else 0.0
+
+    def _evaluate_rule_conditions(self, conditions: list) -> float:
+        """Оценить все условия правила с учетом операторов и групп"""
+        if not conditions:
+            return 0.0
+
+        result = None
+        current_operator = "AND"  # По умолчанию AND
+
+        i = 0
+        while i < len(conditions):
+            condition = conditions[i]
+
+            if condition.get("is_group", False):
+                # Это группа условий
+                # Находим все условия группы
+                group_conditions = []
+                while i < len(conditions) and conditions[i].get("is_group", False):
+                    group_conditions.append(conditions[i])
+                    i += 1
+
+                condition_cf = self._evaluate_group_conditions(group_conditions)
+                group_operator = group_conditions[-1]["operator"] if group_conditions else ""
+            else:
+                condition_cf = self._evaluate_condition(condition)
+                group_operator = condition.get("operator", "")
+                i += 1
+
+            if result is None:
+                result = condition_cf
+                current_operator = group_operator
+            elif current_operator == "AND" or group_operator == "AND":
+                result = min(result, condition_cf)
+                current_operator = group_operator
+            elif group_operator == "OR":
+                result = max(result, condition_cf)
+                current_operator = group_operator
+            else:
+                result = min(result, condition_cf)
 
         return result if result is not None else 0.0
 
@@ -114,7 +248,7 @@ class ExpertSystem:
 
     def query(self, symptoms_input: str):
         """Выполнить диагностику на основе введенных симптомов"""
-        # Очищаем и нормализуем ввод
+        # Очищаем и нормализуем ввод - пользователь вводит просто симптомы через запятую
         symptoms = [s.strip().lower() for s in symptoms_input.split(',') if s.strip()]
 
         if not symptoms:
@@ -173,42 +307,92 @@ class ExpertSystem:
             condition_results = []
 
             for condition in rule["if"]:
-                fact = condition["fact"]
+                fact = condition.get("fact", "")
                 operator = condition.get("operator", "").upper()
+                is_group = condition.get("is_group", False)
 
-                # Ищем соответствие среди симптомов
-                condition_matched = False
-                condition_cf = 0.0
+                if is_group and isinstance(fact, list):
+                    # Это группа условий - проверяем каждый факт в группе
+                    group_matched = True
+                    group_cfs = []
 
-                for symptom_info in matched_symptoms:
-                    if symptom_info["matched_fact"] == fact:
-                        if operator == "NOT":
-                            # Для NOT: уверенность = 1 - уверенность наличия
-                            condition_cf = 1.0 - symptom_info["cf"]
-                            condition_matched = (condition_cf > 0)
-                        else:
-                            condition_cf = symptom_info["cf"]
-                            condition_matched = (condition_cf > 0)
-                        break
+                    for group_fact in fact:
+                        # Ищем соответствие среди симптомов
+                        fact_matched = False
+                        fact_cf = 0.0
 
-                rule_conditions.append({
-                    "fact": fact,
-                    "operator": operator,
-                    "matched": condition_matched,
-                    "cf": condition_cf
-                })
+                        for symptom_info in matched_symptoms:
+                            if symptom_info["matched_fact"] == group_fact:
+                                if operator == "NOT":
+                                    # Для NOT: уверенность = 1 - уверенность наличия
+                                    fact_cf = 1.0 - symptom_info["cf"]
+                                    fact_matched = (fact_cf > 0)
+                                else:
+                                    fact_cf = symptom_info["cf"]
+                                    fact_matched = (fact_cf > 0)
+                                break
 
-                condition_results.append(condition_matched)
+                        group_matched = group_matched and fact_matched
+                        if fact_matched:
+                            group_cfs.append(fact_cf)
+
+                    # Добавляем группу как одно условие
+                    if group_matched and group_cfs:
+                        min_group_cf = min(group_cfs)
+                        rule_conditions.append({
+                            "fact": f"группа: {', '.join(fact)}",
+                            "operator": operator,
+                            "matched": True,
+                            "cf": min_group_cf,
+                            "is_group": True
+                        })
+                        condition_results.append(True)
+                    else:
+                        rule_conditions.append({
+                            "fact": f"группа: {', '.join(fact)}",
+                            "operator": operator,
+                            "matched": False,
+                            "cf": 0.0,
+                            "is_group": True
+                        })
+                        condition_results.append(False)
+                else:
+                    # Обычное условие (не группа)
+                    # Ищем соответствие среди симптомов
+                    condition_matched = False
+                    condition_cf = 0.0
+
+                    for symptom_info in matched_symptoms:
+                        if symptom_info["matched_fact"] == fact:
+                            if operator == "NOT":
+                                # Для NOT: уверенность = 1 - уверенность наличия
+                                condition_cf = 1.0 - symptom_info["cf"]
+                                condition_matched = (condition_cf > 0)
+                            else:
+                                condition_cf = symptom_info["cf"]
+                                condition_matched = (condition_cf > 0)
+                            break
+
+                    rule_conditions.append({
+                        "fact": fact,
+                        "operator": operator,
+                        "matched": condition_matched,
+                        "cf": condition_cf,
+                        "is_group": False
+                    })
+
+                    condition_results.append(condition_matched)
 
             # Проверяем, выполнено ли правило
+            # Для правил со скобками нужно учитывать логику групп
             rule_satisfied = False
 
-            # Простая логика: все условия должны быть выполнены
             if all(condition_results):
                 rule_satisfied = True
             else:
-                # Проверяем сложные условия с операторами
-                # Пока реализуем простую логику AND
+                # Проверяем более сложную логику с операторами
+                # Упрощенная проверка - если есть хотя бы одно выполненное условие
+                # В реальной системе здесь должна быть полноценная логическая проверка
                 continue
 
             if rule_satisfied:
@@ -228,7 +412,8 @@ class ExpertSystem:
                             "conditions": [f"{cond['fact']}" + (f" {cond['operator']}" if cond['operator'] else "")
                                            for cond in rule_conditions],
                             "matched_conditions": [cond["fact"] for cond in rule_conditions if cond["matched"]],
-                            "min_condition_cf": min_condition_cf
+                            "min_condition_cf": min_condition_cf,
+                            "is_group_rule": any(cond.get("is_group", False) for cond in rule_conditions)
                         }
 
         # 3. Формируем результаты
@@ -248,29 +433,61 @@ class ExpertSystem:
             almost_rules = []
             for rule in self.rules:
                 matched_count = 0
-                total_conditions = len(rule["if"])
+                total_conditions = 0
 
                 for condition in rule["if"]:
-                    fact = condition["fact"]
+                    fact = condition.get("fact", "")
                     operator = condition.get("operator", "").upper()
+                    is_group = condition.get("is_group", False)
 
-                    for symptom_info in matched_symptoms:
-                        if symptom_info["matched_fact"] == fact:
-                            if operator == "NOT":
-                                # Для NOT нужно отсутствие симптома
-                                if symptom_info["cf"] < 0.5:  # Если уверенность в наличии < 0.5, считаем отсутствует
+                    if is_group and isinstance(fact, list):
+                        # Группа условий
+                        for group_fact in fact:
+                            total_conditions += 1
+                            for symptom_info in matched_symptoms:
+                                if symptom_info["matched_fact"] == group_fact:
+                                    if operator == "NOT":
+                                        # Для NOT нужно отсутствие симптома
+                                        if symptom_info["cf"] < 0.5:
+                                            matched_count += 1
+                                    else:
+                                        matched_count += 1
+                                    break
+                    else:
+                        # Одиночное условие
+                        total_conditions += 1
+                        for symptom_info in matched_symptoms:
+                            if symptom_info["matched_fact"] == fact:
+                                if operator == "NOT":
+                                    # Для NOT нужно отсутствие симптома
+                                    if symptom_info["cf"] < 0.5:
+                                        matched_count += 1
+                                else:
                                     matched_count += 1
-                            else:
-                                matched_count += 1
-                            break
+                                break
 
                 if matched_count > 0 and matched_count < total_conditions:
+                    # Собираем недостающие условия
+                    missing_conditions = []
+                    for condition in rule["if"]:
+                        fact = condition.get("fact", "")
+                        is_group = condition.get("is_group", False)
+
+                        if is_group and isinstance(fact, list):
+                            for group_fact in fact:
+                                found = any(s["matched_fact"] == group_fact for s in matched_symptoms)
+                                if not found:
+                                    missing_conditions.append(group_fact)
+                        else:
+                            found = any(s["matched_fact"] == fact for s in matched_symptoms)
+                            if not found:
+                                missing_conditions.append(fact)
+
                     almost_rules.append({
                         "diagnosis": rule["then"],
                         "matched": matched_count,
                         "total": total_conditions,
-                        "missing": [cond["fact"] for cond in rule["if"] if cond["fact"] not in
-                                    [s["matched_fact"] for s in matched_symptoms if s["matched_fact"]]]
+                        "missing": missing_conditions
                     })
 
             if almost_rules:
