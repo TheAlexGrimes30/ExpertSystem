@@ -3,23 +3,60 @@ from typing import List, Dict
 
 
 class ExpertSystem:
+    """Экспертная система с поддержкой нечеткой логики и коэффициентов уверенности.
+
+    Система реализует механизм логического вывода на основе правил (if-then)
+    с использованием коэффициента уверенности (CF - Certainty Factor)
+    по методу Шортлиффа. Поддерживает логические операции AND, OR, NOT,
+    группировку условий и выполнение запросов к базе знаний.
+
+    Attributes:
+        facts (Dict[str, float]): Словарь фактов с коэффициентами уверенности.
+        rules (List[Dict]): Список правил вида {'if': условия, 'then': вывод, 'cf': CF}.
+    """
+
     def __init__(self):
+        """Конструктор экспертной системы."""
+
         self.facts: Dict[str, float] = {}
         self.rules: List[Dict] = []
 
     def add_fact(self, fact: str, cf: float):
-        """Добавить факт с коэффициентом уверенности"""
+        """Добавляет факт с коэффициентом уверенности.
+
+        Args:
+            fact: Название факта (строка).
+            cf: Коэффициент уверенности от 0 до 1.
+        """
+
         if not 0 <= cf <= 1:
             raise ValueError("Коэффициент уверенности должен быть от 0 до 1")
         self.facts[fact] = cf
 
     def delete_fact(self, fact: str):
-        """Удалить факт"""
+        """Удаляет факт из базы знаний.
+
+        Args:
+            fact: Название факта для удаления.
+        """
+
         if fact in self.facts:
             del self.facts[fact]
 
     def parse_conditions_string(self, conditions_str: str) -> List[Dict]:
-        """Парсинг строки условий в структурированный формат"""
+        """Парсит строку условий в структурированный формат.
+
+        Преобразует строковое представление условий (например, "A И B ИЛИ НЕТ C")
+        в список словарей с операторами и группировкой.
+
+        Args:
+            conditions_str: Строка условий на естественном языке.
+
+        Returns:
+            Список словарей вида [{'fact': факт, 'operator': оператор, 'is_group': bool}, ...]
+
+        """
+
         conditions_str = conditions_str.strip()
         if not conditions_str:
             return []
@@ -32,7 +69,18 @@ class ExpertSystem:
         return self._parse_tokens(tokens)
 
     def _parse_tokens(self, tokens: List[str]) -> List[Dict]:
-        """Рекурсивный парсинг токенов"""
+        """Рекурсивно парсит токены условий.
+
+        Внутренний метод для разбора токенизированной строки условий.
+        Обрабатывает операторы, группировку и приоритеты операций.
+
+        Args:
+            tokens: Список токенов (слов, операторов, скобок).
+
+        Returns:
+            Структурированное представление условий.
+        """
+
         result = []
         i = 0
 
@@ -143,7 +191,14 @@ class ExpertSystem:
         return result
 
     def add_rule(self, conditions, conclusion: str, cf: float):
-        """Добавить правило"""
+        """Добавляет правило в экспертную систему.
+
+        Args:
+            conditions: Условия правила (строка или список словарей).
+            conclusion: Вывод правила (строка).
+            cf: Коэффициент уверенности правила от 0 до 1.
+        """
+
         if not 0 <= cf <= 1:
             raise ValueError("Коэффициент уверенности должен быть от 0 до 1")
 
@@ -169,19 +224,41 @@ class ExpertSystem:
         })
 
     def delete_rule(self, index: int):
-        """Удалить правило по индексу"""
+        """Удаляет правило по индексу.
+
+        Args:
+            index: Индекс правила в списке rules.
+        """
+
         if 0 <= index < len(self.rules):
             self.rules.pop(index)
 
     def _get_fact_cf(self, fact_name: str, operator: str = "") -> float:
-        """Получить CF для факта с учетом оператора NOT"""
+        """Получает CF для факта с учетом оператора NOT.
+
+        Args:
+             fact_name: Название факта.
+            operator: Логический оператор ('NOT' или '').
+
+        Returns:
+            Коэффициент уверенности факта (1 - CF для NOT).
+        """
+
         cf = self.facts.get(fact_name, 0.0)
         if operator == "NOT":
             return 1.0 - cf
         return cf
 
     def _evaluate_single_condition(self, condition: Dict) -> float:
-        """Оценить одно условие"""
+        """Оценивает одно условие.
+
+        Args:
+            condition: Словарь условия.
+
+        Returns:
+            CF условия после применения операторов.
+        """
+
         fact = condition.get("fact", "")
         operator = condition.get("operator", "").upper()
         is_group = condition.get("is_group", False)
@@ -193,7 +270,15 @@ class ExpertSystem:
             return self._get_fact_cf(fact, operator)
 
     def _evaluate_conditions(self, conditions: List[Dict]) -> float:
-        """Оценить все условия правила с правильной логикой AND/OR"""
+        """Оценивает все условия правила с правильной логикой AND/OR.
+
+        Args:
+            conditions: Список условий.
+
+        Returns:
+            Общий CF для всех условий с учетом операторов.
+        """
+
         if not conditions:
             return 0.0
 
@@ -226,7 +311,15 @@ class ExpertSystem:
         return result if result is not None else 0.0
 
     def infer(self) -> Dict[str, float]:
-        """Выполнить логический вывод по методу Шортлиффа"""
+        """Выполняет логический вывод по методу Шортлиффа.
+
+        Проходит по всем правилам, вычисляет их применимость
+        и добавляет новые факты с учетом коэффициентов уверенности.
+
+        Returns:
+            Словарь новых выведенных фактов с их CF.
+        """
+
         new_inferences = True
         inferred = {}
 
@@ -254,7 +347,27 @@ class ExpertSystem:
         return inferred
 
     def query(self, symptoms_input: str) -> Dict:
-        """Выполнить анализ на основе введенных данных"""
+        """Выполняет анализ на основе введенных данных.
+
+        Основной метод для взаимодействия с пользователем.
+        Анализирует входные данные, сопоставляет с базой знаний
+        и возвращает возможные выводы.
+
+        Args:
+            symptoms_input: Строка с симптомами/условиями (на естественном языке).
+
+        Returns:
+            Словарь с результатами анализа:
+                {
+                    'success': bool,
+                    'query': str,
+                    'parsed_conditions': List[Dict],
+                    'conclusions': List[Dict],
+                    'matched_items': List[Dict],
+                    'partial_matches': Dict или None
+                }
+        """
+
         parsed_conditions = self.parse_conditions_string(symptoms_input)
 
         if not parsed_conditions:
@@ -329,7 +442,17 @@ class ExpertSystem:
         return result
 
     def _check_rule_structure_match(self, rule: Dict, query_conditions: List[Dict], matched_items: List[Dict]) -> bool:
-        """Проверить полное соответствие структуры правила и запроса"""
+        """Проверяет полное соответствие структуры правила и запроса.
+
+        Args:
+            rule: Правило из базы знаний.
+            query_conditions: Условия из запроса пользователя.
+            matched_items: Сопоставленные факты.
+
+        Returns:
+            True если структура правила полностью соответствует запросу.
+        """
+
         rule_conditions = rule["if"]
 
         if len(rule_conditions) != len(query_conditions):
@@ -372,7 +495,18 @@ class ExpertSystem:
         return True
 
     def _match_fact(self, fact_name: str, operator: str, matched_items: List[Dict], all_fact_names: List[str]) -> None:
-        """Сопоставить факт с базой знаний"""
+        """Сопоставляет факт с базой знаний.
+
+        Ищет точное или нормализованное соответствие между входным фактом
+        и фактами в базе знаний.
+
+        Args:
+            fact_name: Факт из запроса.
+            operator: Логический оператор.
+            matched_items: Список для сохранения сопоставлений.
+            all_fact_names: Все факты из базы знаний.
+        """
+
         matched = False
 
         input_normalized = ' '.join(fact_name.lower().replace('_', ' ').split())
@@ -403,14 +537,33 @@ class ExpertSystem:
             })
 
     def _facts_match(self, input_fact: str, stored_fact: str) -> bool:
-        """Проверить, соответствует ли входной факт сохраненному факту"""
+        """Проверяет, соответствует ли входной факт сохраненному факту.
+
+        Args:
+            input_fact: Факт из запроса.
+            stored_fact: Факт из базы знаний.
+
+        Returns:
+            True если факты совпадают после нормализации.
+        """
+
         input_normalized = ' '.join(input_fact.lower().replace('_', ' ').split())
         stored_normalized = ' '.join(stored_fact.lower().replace('_', ' ').split())
 
         return input_normalized == stored_normalized
 
     def _fact_in_matched(self, fact_name: str, operator: str, matched_items: List[Dict]) -> bool:
-        """Проверить, есть ли факт в сопоставленных элементах"""
+        """Проверяет, есть ли факт в сопоставленных элементах.
+
+        Args:
+            fact_name: Название факта.
+            operator: Логический оператор.
+            matched_items: Список сопоставленных элементов.
+
+        Returns:
+            True если факт найден и удовлетворяет условию оператора.
+        """
+
         fact_normalized = ' '.join(fact_name.lower().replace('_', ' ').split())
 
         for item in matched_items:
@@ -428,7 +581,16 @@ class ExpertSystem:
         return False
 
     def _calculate_rule_cf(self, rule: Dict, matched_items: List[Dict]) -> float:
-        """Рассчитать CF для правил на основе сопоставленных фактов"""
+        """Рассчитывает CF для правил на основе сопоставленных фактов.
+
+        Args:
+            rule: Правило для оценки.
+            matched_items: Сопоставленные факты.
+
+        Returns:
+            Общий CF условий правила.
+        """
+
         condition_cfs = []
 
         for condition in rule["if"]:
@@ -469,7 +631,17 @@ class ExpertSystem:
         return result
 
     def _get_matched_cf(self, fact_name: str, operator: str, matched_items: List[Dict]) -> float:
-        """Получить CF из сопоставленных элементов"""
+        """Получает CF из сопоставленных элементов.
+
+        Args:
+            fact_name: Название факта.
+            operator: Логический оператор.
+            matched_items: Список сопоставленных элементов.
+
+        Returns:
+            CF факта или 0.0 если не найден.
+        """
+
         fact_normalized = ' '.join(fact_name.lower().replace('_', ' ').split())
 
         for item in matched_items:
@@ -484,7 +656,15 @@ class ExpertSystem:
         return 0.0
 
     def _format_conditions(self, conditions: List[Dict]) -> List[str]:
-        """Форматировать условия для отображения"""
+        """Форматирует условия для отображения.
+
+        Args:
+            conditions: Список условий.
+
+        Returns:
+            Список строковых представлений условий.
+        """
+
         formatted = []
 
         for condition in conditions:
@@ -508,7 +688,20 @@ class ExpertSystem:
         return formatted
 
     def _format_calculation(self, rule: Dict, matched_items: List[Dict], rule_cf: float, conclusion_cf: float) -> str:
-        """Форматировать строку расчета"""
+        """Форматирует строку расчета.
+
+        Создает человекочитаемое представление вычисления CF.
+
+        Args:
+            rule: Правило.
+            matched_items: Сопоставленные факты.
+            rule_cf: CF правила.
+            conclusion_cf: Итоговый CF вывода.
+
+        Returns:
+            Строка с формулой расчета.
+        """
+
         parts = []
 
         for i, condition in enumerate(rule["if"]):
@@ -539,7 +732,19 @@ class ExpertSystem:
         return f"{expression} × {rule_cf:.2f} = {conclusion_cf:.4f}"
 
     def _find_partial_matches(self, matched_items: List[Dict], query_conditions: List[Dict]) -> List[Dict]:
-        """Найти частичные совпадения с правилами"""
+        """Находит частичные совпадения с правилами.
+
+        Ищет правила, которые частично соответствуют запросу
+        (не все условия выполнены).
+
+        Args:
+            matched_items: Сопоставленные факты.
+            query_conditions: Условия запроса.
+
+        Returns:
+            Список частично совпадающих правил.
+        """
+
         partial_rules = []
 
         for rule in self.rules:
@@ -577,7 +782,15 @@ class ExpertSystem:
         return partial_rules
 
     def _get_confidence_level(self, cf: float) -> str:
-        """Определить уровень уверенности на основе CF"""
+        """Определяет уровень уверенности на основе CF.
+
+        Args:
+            cf: Коэффициент уверенности.
+
+        Returns:
+            Текстовое описание уровня уверенности.
+        """
+
         if cf >= 0.8:
             return "очень высокая"
         elif cf >= 0.6:
@@ -590,7 +803,12 @@ class ExpertSystem:
             return "очень низкая"
 
     def load_from_dict(self, data: dict):
-        """Загрузить состояние системы из словаря"""
+        """Загружает состояние системы из словаря.
+
+        Args:
+            data: Словарь с данными системы {'facts': {...}, 'rules': [...]}
+        """
+
         self.facts = data.get("facts", {})
         self.rules = []
 
@@ -598,7 +816,12 @@ class ExpertSystem:
             self.add_rule(rule["if"], rule["then"], rule["cf"])
 
     def to_dict(self):
-        """Преобразовать состояние системы в словарь"""
+        """Преобразует состояние системы в словарь.
+
+        Returns:
+            Словарь с полным состоянием системы.
+        """
+
         return {
             "facts": self.facts,
             "rules": self.rules
