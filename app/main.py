@@ -36,22 +36,52 @@ expert_system = ExpertSystem()
 
 
 class FactData(BaseModel):
+    """
+    Модель данных для представления факта в экспертной системе.
+
+    Attributes:
+        fact (str): Факт в виде строки
+        cf (float): Коэффициент уверенности (confidence factor) в диапазоне от 0.0 до 1.0
+    """
+
     fact: str
     cf: float
 
 
 class RuleData(BaseModel):
+    """
+    Модель данных для представления правила в экспертной системе.
+
+    Attributes:
+        conditions (str): Условия правила в виде строки
+        conclusion (str): Заключение правила в виде строки
+        cf (float): Коэффициент уверенности правила, по умолчанию 0.5
+    """
+
     conditions: str
     conclusion: str
     cf: float = 0.5
 
 
 class QueryData(BaseModel):
+    """
+    Модель данных для представления запроса к экспертной системе.
+
+    Attributes:
+        query (str): Запрос в виде строки для анализа
+    """
+
     query: str
 
 
 def list_knowledge_bases() -> List[str]:
-    """Получить список файлов баз знаний"""
+    """
+    Получить список файлов баз знаний из директории knowledge_base.
+
+    Returns:
+        List[str]: Отсортированный список имен файлов с расширением .json
+    """
+
     files = []
     for file in knowledge_base_dir.iterdir():
         if file.is_file() and file.suffix == '.json':
@@ -60,7 +90,16 @@ def list_knowledge_bases() -> List[str]:
 
 
 def load_knowledge_base(filename: str) -> Dict:
-    """Загрузить базу знаний из файла"""
+    """
+    Загрузить базу знаний из JSON файла.
+
+    Args:
+        filename (str): Имя файла базы знаний
+
+    Returns:
+        Dict: Словарь с данными базы знаний
+    """
+
     filepath = knowledge_base_dir / filename
     if not filepath.exists():
         raise HTTPException(status_code=404, detail="Файл не найден")
@@ -70,7 +109,14 @@ def load_knowledge_base(filename: str) -> Dict:
 
 
 def save_knowledge_base(filename: str, data: Dict) -> None:
-    """Сохранить базу знаний в файл"""
+    """
+    Сохранить базу знаний в JSON файл.
+
+    Args:
+        filename (str): Имя файла для сохранения
+        data (Dict): Данные базы знаний для сохранения
+    """
+
     if not filename.endswith('.json'):
         filename += '.json'
 
@@ -80,7 +126,16 @@ def save_knowledge_base(filename: str, data: Dict) -> None:
 
 
 def delete_knowledge_base(filename: str) -> None:
-    """Удалить файл базы знаний"""
+    """
+    Удалить файл базы знаний.
+
+    Args:
+        filename (str): Имя файла для удаления
+
+    Raises:
+        HTTPException: Если файл не найден (статус 404)
+    """
+
     filepath = knowledge_base_dir / filename
     if not filepath.exists():
         raise HTTPException(status_code=404, detail="Файл не найден")
@@ -89,13 +144,28 @@ def delete_knowledge_base(filename: str) -> None:
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
-    """Главная страница приложения"""
+    """
+    Обработчик GET запроса для главной страницы приложения.
+
+    Args:
+        request (Request): Объект запроса FastAPI
+
+    Returns:
+        TemplateResponse: HTML страница index.html
+    """
+
     return templates.TemplateResponse("index.html", {"request": request})
 
 
 @app.get("/api/knowledge-bases")
 async def get_knowledge_bases():
-    """Получить список доступных баз знаний"""
+    """
+    API endpoint для получения списка доступных баз знаний.
+
+    Returns:
+        JSONResponse: Объект с флагом успеха и списком файлов
+    """
+
     try:
         files = list_knowledge_bases()
         return JSONResponse(content={"success": True, "files": files})
@@ -105,7 +175,16 @@ async def get_knowledge_bases():
 
 @app.get("/api/knowledge-base/{filename}")
 async def load_knowledge_base_endpoint(filename: str):
-    """Загрузить базу знаний из файла"""
+    """
+    API endpoint для загрузки базы знаний из файла в экспертную систему.
+
+    Args:
+        filename (str): Имя файла базы знаний
+
+    Returns:
+        JSONResponse: Объект с данными базы знаний и текущим состоянием системы
+    """
+
     try:
         data = load_knowledge_base(filename)
         expert_system.load_from_dict(data)
@@ -123,7 +202,16 @@ async def load_knowledge_base_endpoint(filename: str):
 
 @app.post("/api/knowledge-base/{filename}")
 async def save_knowledge_base_endpoint(filename: str):
-    """Сохранить текущую базу знаний в файл"""
+    """
+    API endpoint для сохранения текущей базы знаний в файл.
+
+    Args:
+        filename (str): Имя файла для сохранения
+
+    Returns:
+        JSONResponse: Объект с флагом успеха операции
+    """
+
     try:
         data = expert_system.to_dict()
         save_knowledge_base(filename, data)
@@ -134,7 +222,16 @@ async def save_knowledge_base_endpoint(filename: str):
 
 @app.delete("/api/knowledge-base/{filename}")
 async def delete_knowledge_base_endpoint(filename: str):
-    """Удалить файл базы знаний"""
+    """
+    API endpoint для удаления файла базы знаний.
+
+    Args:
+        filename (str): Имя файла для удаления
+
+    Returns:
+        JSONResponse: Объект с флагом успеха операции
+    """
+
     try:
         delete_knowledge_base(filename)
         return JSONResponse(content={"success": True})
@@ -146,7 +243,16 @@ async def delete_knowledge_base_endpoint(filename: str):
 
 @app.post("/api/fact")
 async def add_fact(fact_data: FactData):
-    """Добавить новый факт"""
+    """
+    API endpoint для добавления нового факта в экспертную систему.
+
+    Args:
+        fact_data (FactData): Данные факта (текст и коэффициент уверенности)
+
+    Returns:
+        JSONResponse: Объект с флагом успеха и обновленным списком фактов
+    """
+
     try:
         expert_system.add_fact(fact_data.fact, fact_data.cf)
         return JSONResponse(content={
@@ -159,7 +265,16 @@ async def add_fact(fact_data: FactData):
 
 @app.delete("/api/fact/{fact:path}")
 async def delete_fact(fact: str):
-    """Удалить факт"""
+    """
+    API endpoint для удаления факта из экспертной системы.
+
+    Args:
+        fact (str): URL-кодированный текст факта для удаления
+
+    Returns:
+        JSONResponse: Объект с флагом успеха и обновленным списком фактов
+    """
+
     try:
         decoded_fact = urllib.parse.unquote(fact)
         expert_system.delete_fact(decoded_fact)
@@ -173,7 +288,16 @@ async def delete_fact(fact: str):
 
 @app.post("/api/rule")
 async def add_rule(rule_data: RuleData):
-    """Добавить новое правило"""
+    """
+    API endpoint для добавления нового правила в экспертную систему.
+
+    Args:
+        rule_data (RuleData): Данные правила (условия, заключение и коэффициент уверенности)
+
+    Returns:
+        JSONResponse: Объект с флагом успеха и обновленным списком правил
+    """
+
     try:
         if not rule_data.conditions.strip():
             raise HTTPException(status_code=400, detail="Условия не могут быть пустыми")
@@ -193,7 +317,16 @@ async def add_rule(rule_data: RuleData):
 
 @app.delete("/api/rule/{index}")
 async def delete_rule(index: int):
-    """Удалить правило по индексу"""
+    """
+    API endpoint для удаления правила по индексу.
+
+    Args:
+        index (int): Индекс правила в списке правил
+
+    Returns:
+        JSONResponse: Объект с флагом успеха и обновленным списком правил
+    """
+
     try:
         expert_system.delete_rule(index)
         return JSONResponse(content={
@@ -206,7 +339,13 @@ async def delete_rule(index: int):
 
 @app.post("/api/infer")
 async def make_inference():
-    """Выполнить логический вывод"""
+    """
+    API endpoint для выполнения логического вывода в экспертной системе.
+
+    Returns:
+        JSONResponse: Объект с результатами вывода и текущим состоянием фактов
+    """
+
     try:
         inferred = expert_system.infer()
         return JSONResponse(content={
@@ -220,7 +359,16 @@ async def make_inference():
 
 @app.post("/api/query")
 async def make_query(query_data: QueryData):
-    """Выполнить анализ на основе введенных данных"""
+    """
+    API endpoint для выполнения анализа на основе введенных данных.
+
+    Args:
+        query_data (QueryData): Данные запроса для анализа
+
+    Returns:
+        JSONResponse: Объект с результатом анализа или сообщением об ошибке
+    """
+
     try:
         query = query_data.query.strip()
 
@@ -260,7 +408,13 @@ async def make_query(query_data: QueryData):
 
 @app.get("/api/current-state")
 async def get_current_state():
-    """Получить текущее состояние системы (факты и правила)"""
+    """
+    API endpoint для получения текущего состояния экспертной системы.
+
+    Returns:
+        JSONResponse: Объект с текущими фактами и правилами системы
+    """
+
     return JSONResponse(content={
         "success": True,
         "facts": expert_system.facts,
@@ -270,7 +424,13 @@ async def get_current_state():
 
 @app.post("/api/clear-all")
 async def clear_all():
-    """Очистить все факты и правила"""
+    """
+    API endpoint для очистки всех данных экспертной системы.
+
+    Returns:
+        JSONResponse: Объект с флагом успеха и сообщением
+    """
+
     try:
         expert_system.facts = {}
         expert_system.rules = []
@@ -283,6 +443,10 @@ async def clear_all():
 
 
 if __name__ == "__main__":
+    """
+    Точка входа для запуска FastAPI приложения.
+    """
+
     port = int(os.getenv("PORT", 8000))
 
     print(f"Сервер запущен: http://localhost:{port}")
